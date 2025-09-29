@@ -1,0 +1,65 @@
+# DON'T TOUCH ANYTHING HERE OR I WILL COME FOR YOUR SOUL NEXT NIGHT
+
+- add some ferbium blocks
+- add spectralia related blocks
+- add superdense alloy related blocks
+- new turrets
+- make aurora rocket faster
+- resprite sorter-item part
+- resprite unloader-item part
+
+
+#before release
+- nerf everything
+- maps
+- electricity system balance
+- fix ru localization
+
+#after release(probably)
+
+#done
+-new environment blocks
+-make burst fire
+-(unfinished)composite wall has new unique effect
+-superdense walls added
+-many blocks recolored, better block coloring system
+-impulse underflow gate added
+-reverse impulse sorter added
+-impulse unloader added
+-fors ore resprited
+-superdense wall add
+-naval mine bugfix (works correctly)
+-sandbox floor added
+-new liquid spectralia added
+
+#TOTALLY
+-fors conveyor resprite
+-bridge conveyor resprite
+-blocks color identification changed
+-reverse sorters and gates added
+-unloader added
+-composite wall unique effect added
+-superdense wall added
+-superdense kiln added
+-fors ore resprited
+-sandbox floor added
+-new fx effects added
+-unit eliminator remake
+-unit vector remake (new burst fire added)
+-new liquid spectralia added
+-fix bridge conveyors
+-fix ferbium ore display
+-fixed DroneUnitType crash in multiplayer
+-fixed hardened conveyor icon
+-fixed sorter item color (doesn't display), reverse sorter too
+-added unit refabricators
+-fixed planet gen
+- fixed gyurza missile
+- t3 naval "aurora"
+- new liquid Spectralia added
+- - deep oxylite gives 175% oxylite
+  - serrid oxylite givex 75% oxylite
+  - lepera & wet lepera blocks added
+  - 4 new lepera ore variants
+  - sandbox plus floor sound & fx fixes
+- ModOverlayFloor sprite crutch fix

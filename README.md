@@ -1,3 +1,4 @@
+# DEV VERSION
 [![Discord](https://img.shields.io/discord/1011940744774303795.svg?color=7289da&logo=discord&label=HPL&style=for-the-badge)](https://discord.gg/H9d7ZACXTr)
 [![YouTube](https://img.shields.io/youtube/channel/subscribers/UCSwjTWn3yFrjMLg-PFo39fg?color=ff5959&label=YouTube&logo=youtube&style=for-the-badge)](https://www.youtube.com/@HPLTeam4)
 
@@ -19,7 +20,7 @@ Windows      |  MacOSX       | Linux
 gradlew jar  | ./gradlew jar | ./gradlew jar
 
 * 4.When compilation is end, your build will be in "build/libs"
-Download
+  Download
 
 # Android Build Guide
 
@@ -30,10 +31,10 @@ Download
 * 3.Clone this repository.
 
 * 4.When importing is end, go to Intelij console and type:
-   
+
 Windows      |  MacOSX       | Linux
 ------------ | ------------- | -------------
 gradlew deploy  | ./gradlew deploy | ./gradlew deploy
 
 * 5.When compilation is end, your build will be in "build/libs"
-Download
+  Download
