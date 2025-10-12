@@ -1,0 +1,10 @@
+{
+  "displayName": "Azaria",
+  "name": "azaria",
+  "author": "Azaria Team",
+  "main": "azaria.AzariaMod",
+  "description": "Java mod that contains a full of content planet. This is the beta version so it may not display the final version of the project.",
+  "version": "0.3A,",
+  "minGameVersion": "151.1",
+  "java": true
+}

@@ -163,7 +163,7 @@ tools/build/
 revisions/
 
 ## Sprites
-/assets/sprites/atlas/concent1.png
-/assets/sprites/atlas/concent2.png
+/main/assets-raw/sprites/atlas/concent1.png
+/main/assets-raw/sprites/atlas/concent2.png
 /bmod.exe
 ## t
