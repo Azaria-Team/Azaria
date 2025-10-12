@@ -112,6 +112,7 @@ public class AurionaPlanetGenerator extends PlanetGenerator {
         float height = rawHeight(position);
         return Math.max(height, water);
     }
+    /*
     @Override
     public void getColor(Vec3 position, Color out) {
         Block block = getBlock(position);
@@ -122,6 +123,8 @@ public class AurionaPlanetGenerator extends PlanetGenerator {
             out.set(block.mapColor).a(1f - block.albedo);
         }
     }
+    
+     */
 
     @Override
     public void genTile(Vec3 position, TileGen tile){

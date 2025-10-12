@@ -172,5 +172,6 @@ tools/build/
 /main/build/
 /main/build/generated
 main/build
-/main/assets/sprites/atlas
+/main/assets/sprites/atlas/
+main/assets/sprites/atlas/
 ## t

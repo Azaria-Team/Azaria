@@ -32,11 +32,12 @@ public class TestGenerator extends PlanetGenerator {
         return rawHeight(position);
     }
 
-    public Color getColor(Vec3 position) {
-        Color color = baseColor;
+    @Override
+    public void getColor(Vec3 position, Color out){
+        out.set(baseColor);
         for (ColorPass c : colors) {
-            if (c.color(position, rawHeight(position)) != null) color = c.color(position, rawHeight(position));
+            Color temp = c.color(position, rawHeight(position));
+            if (temp != null) out.set(temp);
         }
-        return color;
     }
 }
