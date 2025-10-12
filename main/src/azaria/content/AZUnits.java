@@ -46,19 +46,19 @@ public class AZUnits {
     UnitType gyurza, veresk, chaos;
     //angelshark unit tree
     public static @Annotations.EntityDef({Unitc.class, WaterMovec.class})
-    UnitType angelshark, glaucus, aurora, piranha, megalodon;
+    UnitType angelshark, glaucus, aurora/*, piranha, megalodon*/;
     //vector tree
     public static @Annotations.EntityDef({Unitc.class, Dronec.class, ElevationMovec.class})
     UnitType vector;
     public static @Annotations.EntityDef({Unitc.class, Dronec.class})
-    UnitType zephyr, vortex, altura, cataclysm;
+    UnitType zephyr, vortex/*, altura, cataclysm*/;
     public static @Annotations.EntityDef({Unitc.class, StriCopterc.class})
     //unmaker tree
-    UnitType unmaker, eliminator, exterminator, blighter, plague, opjozdysh;
+    UnitType unmaker, eliminator, exterminator,/* blighter, plague,*/ opjozdysh;
 
     //support tree
     public static @Annotations.EntityDef({Unitc.class, Tankc.class})
-    UnitType sentinel, custodian, bulwark, bulat, colossus;
+    UnitType sentinel, custodian, bulwark/*, bulat, colossus|*/;
     //fire support
 
 

@@ -168,6 +168,8 @@ revisions/
 /bmod.exe
 main/src/azaria/gen
 tools/build/
-annotations/build/
-main/build/
+/annotations/build/
+/main/build/
+/main/build/generated
+main/build
 ## t
