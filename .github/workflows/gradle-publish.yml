@@ -55,7 +55,7 @@ jobs:
             git config --global user.email "actions@github.com"
             git add main/assets/bundles/*
             git commit -m "Automatic bundle update"
-              git push
+            git push origin ${{ github.ref_name }} --force-with-lease
             fi
 
       - name: Build mod artifact
