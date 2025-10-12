@@ -12,8 +12,6 @@ import azaria.entities.bullets.ModEmpBulletType;
 import azaria.entities.units.DroneUnitType;
 import azaria.entities.units.StriCopterUnitType;
 import azaria.gen.*;
-import azaria.gen.TankUnit;
-import azaria.gen.UnitEntity;
 import azaria.graphics.AZPal;
 import azaria.pattern.AZBurstShoot;
 import azaria.type.weapons.BeamWeapon;
@@ -41,9 +39,12 @@ import mindustry.world.meta.BlockFlag;
 
 import static mindustry.Vars.tilesize;
 public class AZUnits {
-    //aurelia core units
+    /*
     public static @Annotations.EntityDef({Unitc.class})
-    UnitType gyurza/*, veresk, chaos*/;
+    UnitType gyurza, veresk, chaos;
+     */
+    //aurelia units
+    public static UnitType gyurza, sentinel, custodian, bulwark;
     //angelshark unit tree
     public static @Annotations.EntityDef({Unitc.class, WaterMovec.class})
     UnitType angelshark, glaucus, aurora/*, piranha, megalodon*/;
@@ -55,11 +56,12 @@ public class AZUnits {
     public static @Annotations.EntityDef({Unitc.class, StriCopterc.class})
     //unmaker tree
     UnitType unmaker, eliminator, exterminator,/* blighter, plague,*/ opjozdysh;
-
+/*
     //support tree
     public static @Annotations.EntityDef({Unitc.class, Tankc.class})
     UnitType sentinel, custodian, bulwark/*, bulat, colossus|*/;
     //fire support
+
 
 
     public static void load() {
@@ -164,7 +166,7 @@ public class AZUnits {
             constructor = WaterMoveUnit::create;
             outlineColor = AZPal.aureliaOutline;
 
-            weapons.add(new Weapon("az-vog-launcher") {{
+            weapons.add(new Weapon("azaria-vog-launcher") {{
                 reload = 90f;
                 shootY = 2f;
                 rotate = true;
@@ -173,7 +175,7 @@ public class AZUnits {
                 mirror = false;
                 rotateSpeed = 6;
                 shootSound = Sounds.shootAlt;
-                bullet = new MissileBulletType(5f, 10, "az-vog") {{
+                bullet = new MissileBulletType(5f, 10, "azaria-vog") {{
                     backColor = AZPal.vogPinkBack;
                     frontColor = AZPal.forceBullet;
                     width = 13f;
@@ -225,7 +227,7 @@ public class AZUnits {
                     }});
 
             weapons.add(
-                    new Weapon("az-plasma-pointer") {{
+                    new Weapon("azaria-plasma-pointer") {{
                         reload = 60f;
                         shootY = 2f;
                         rotate = false;
@@ -241,7 +243,7 @@ public class AZUnits {
                         bullet = new AimBulletType(3f, 25) {{
                             backColor = AZPal.vogPinkBack;
                             frontColor = AZPal.vogPink;
-                            sprite = "az-dagger-missile";
+                            sprite = "azaria-dagger-missile";
                             maxRange = 240;
                             homingPower = 0.07f;
                             homingRange = 0;
@@ -262,7 +264,7 @@ public class AZUnits {
                             splashDamageRadius = 20;
                         }};
                     }},
-                    new Weapon("az-plasma-pointer") {
+                    new Weapon("azaria-plasma-pointer") {
                         {
                             reload = 60f;
                             shootY = 2f;
@@ -280,7 +282,7 @@ public class AZUnits {
                                 {
                                     backColor = AZPal.vogPinkBack;
                                     frontColor = AZPal.vogPink;
-                                    sprite = "az-dagger-missile";
+                                    sprite = "azaria-dagger-missile";
                                     maxRange = 240;
                                     homingPower = 0.07f;
                                     homingRange = 0;
@@ -306,7 +308,7 @@ public class AZUnits {
 
             //TODO nerfc
             weapons.add(
-                    new Weapon("az-vog-automatic-launcher") {{
+                    new Weapon("azaria-vog-automatic-launcher") {{
                         reload = 100f;
                         shootY = 3f;
                         inaccuracy = 5.5f;
@@ -318,7 +320,7 @@ public class AZUnits {
                         shootSound = Sounds.shootAlt;
 
                         shoot = new AZBurstShoot(3, 6, 15f);
-                        bullet = new MissileBulletType(6f, 10, "az-vog") {{
+                        bullet = new MissileBulletType(6f, 10, "azaria-vog") {{
                             velocityRnd =  0.175f;
                             homingPower = 0f;
                             homingRange = 0f;
@@ -363,7 +365,7 @@ public class AZUnits {
             outlineColor = AZPal.aureliaOutline;
 
             weapons.add(
-                    new Weapon("az-laser-launcher") {{
+                    new Weapon("azaria-laser-launcher") {{
                         reload = 6f * Time.toSeconds;
 
                         x = 1f;
@@ -483,7 +485,7 @@ public class AZUnits {
             }
 
             weapons.add(
-                    new Weapon("az-unmaker-teeth") {{
+                    new Weapon("azaria-unmaker-teeth") {{
                         x = 2f;
                         y = 8f;
                         reload = 27.5f;
@@ -495,7 +497,7 @@ public class AZUnits {
                         bullet = new BasicBulletType(5.5f, 7) {{
                             lifetime = 25f;
 
-                            sprite = "az-dagbul";
+                            sprite = "azaria-dagbul";
                             statusDuration = 60 * 8f;
                             status = AZStatusEffects.weakness;
 
@@ -773,7 +775,7 @@ public class AZUnits {
                         rotorRadial = true;
                         bladeCount = 3;
                     }});
-            weapons.add(new Weapon("az-vector-gun")
+            weapons.add(new Weapon("azaria-vector-gun")
             {{
                 reload = 27.5f; //10
                 rotate = false;
@@ -787,7 +789,7 @@ public class AZUnits {
                 shoot = new AZBurstShoot(2, 5, 4.0f);
                 inaccuracy = 5.65f;
                 bullet = new BasicBulletType(6f, 10) {{
-                    sprite = "az-grenade";
+                    sprite = "azaria-grenade";
                     backColor = AZPal.droneBulletBack;
                     frontColor = AZPal.droneBullet;
                     width = 7f;
@@ -828,7 +830,7 @@ public class AZUnits {
                         drawRotorTop = true;
                         drawGlow = true;
                     }});
-            weapons.add(new Weapon("az-zephyr-gun") {{
+            weapons.add(new Weapon("azaria-zephyr-gun") {{
                 reload = 25f;
                 shootY = 2f;
                 rotate = false;
@@ -841,7 +843,7 @@ public class AZUnits {
                 inaccuracy = 5.5f;
                 bullet = new ArtilleryBulletType(5.5f, 10) {{
                     velocityRnd = 0.25f;
-                    sprite = "az-grenade";
+                    sprite = "azaria-grenade";
                     backColor = AZPal.droneBulletBack;
                     frontColor = AZPal.droneBullet;
                     width = 9f;
@@ -856,7 +858,7 @@ public class AZUnits {
                     splashDamageRadius = 2f * Vars.tilesize;
                     fragBullets = 6;
                     fragBullet = new BasicBulletType(4f, 20) {{
-                        sprite = "az-grenade";
+                        sprite = "azaria-grenade";
                         backColor = AZPal.droneBulletBack;
                         frontColor = AZPal.droneBullet;
                         width = 5f;
@@ -900,7 +902,7 @@ public class AZUnits {
             );
 
             weapons.add(
-                    new Weapon("az-vortex-emp") {{
+                    new Weapon("azaria-vortex-emp") {{
                         rotate = true;
                         mirror = false;
                         rotateSpeed = 2.0f;
@@ -959,7 +961,7 @@ public class AZUnits {
                             }};
                         }};
                     }},
-                    new Weapon("az-vortex-gun") {{
+                    new Weapon("azaria-vortex-gun") {{
                         rotate = true;
                         mirror = true;
                         alternate = true;
@@ -974,7 +976,7 @@ public class AZUnits {
 
                         bullet = new BasicBulletType(5.7f, 15) {{
                             velocityRnd = 0.25f;
-                            sprite = "az-grenade";
+                            sprite = "azaria-grenade";
                             backColor = AZPal.droneBulletBack;
                             frontColor = AZPal.droneBullet;
                             width = 8f;
@@ -992,7 +994,7 @@ public class AZUnits {
                             fragLifeMax = 1.5f;
                             fragBullet = new BasicBulletType(5f, 5) {{
                                 velocityRnd = 0.25f;
-                                sprite = "az-grenade";
+                                sprite = "azaria-grenade";
                                 pierce = true;
                                 pierceBuilding = true;
                                 pierceCap = 1;
@@ -1045,7 +1047,7 @@ public class AZUnits {
                 whenShooting = true;
                 width = 10f;
             }});
-            weapons.add(new Weapon("az-flare-shield") {{
+            weapons.add(new Weapon("azaria-flare-shield") {{
                 reload = Integer.MAX_VALUE;
                 shootSound = Sounds.none;
                 recoil = 0f;
@@ -1079,7 +1081,7 @@ public class AZUnits {
                 targetGround = true;
                 abilities.add(new StatusFieldAbility(AZStatusEffects.boost, 5 * 60, 10 * 60, 10f * 8));
 
-                weapons.add(new Weapon("az-gun")
+                weapons.add(new Weapon("azaria-gun")
                 {{
                     reload = 80f;
                     rotate = true;
@@ -1096,7 +1098,7 @@ public class AZUnits {
 
                     inaccuracy = 3f;
                     bullet = new BasicBulletType(5.5f, 15) {{
-                        sprite = "az-grenade";
+                        sprite = "azaria-grenade";
                         chargeEffect = AZFx.custodianCharge;
                         backColor = AZPal.craside2;
                         frontColor = AZPal.craside;
@@ -1135,7 +1137,7 @@ public class AZUnits {
                 range = 17f * 8;
                 targetAir = true;
                 targetGround = true;
-                weapons.add(new Weapon("az-lightning-weapon") {{
+                weapons.add(new Weapon("azaria-lightning-weapon") {{
                     reload = 120f;
                     rotate = true;
                     x = 0;
