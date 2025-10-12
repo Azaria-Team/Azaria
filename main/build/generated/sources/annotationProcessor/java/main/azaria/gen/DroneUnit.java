@@ -107,7 +107,7 @@ import mindustry.world.blocks.environment.Floor;
 import mindustry.world.blocks.storage.CoreBlock;
 
 @SuppressWarnings({"all", "deprecation"})
-public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc, Posc, Itemsc, Dronec, Weaponsc, Hitboxc, Syncc, Unitc, Drawc, Statusc, Healthc, Velc, Builderc, Rotc, Minerc {
+public class DroneUnit extends Unit implements Builderc, Hitboxc, Entityc, Syncc, Dronec, Drawc, Posc, Teamc, Physicsc, Rotc, Unitc, Healthc, Statusc, Velc, Itemsc, Weaponsc, Shieldc, Minerc {
     private static final Vec2 tmp1 = new Vec2();
 
     private static final Vec2 tmp2 = new Vec2();
@@ -116,7 +116,17 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
 
     public static final float hitDuration = 9.0F;
 
+    private transient float buildCounter;
+
+    private transient BuildPlan lastActive;
+
+    private transient int lastSize;
+
     private transient boolean added;
+
+    public transient Rotor.RotorMount[] rotors;
+
+    public transient float rotSpeedScl = 1.0F;
 
     private transient float x_TARGET_;
 
@@ -126,12 +136,9 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
 
     private transient float y_LAST_;
 
-    public transient Rotor.RotorMount[] rotors;
+    private transient float rotation_TARGET_;
 
-    public transient float rotSpeedScl = 1.0F;
-
-    @Annotations.ReadOnly
-    protected transient boolean isRotate;
+    private transient float rotation_LAST_;
 
     private UnitController controller;
 
@@ -147,33 +154,25 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
 
     private transient Bits applied = new Bits(content.getBy(ContentType.status).size);
 
-    private transient float buildCounter;
-
-    private transient BuildPlan lastActive;
-
-    private transient int lastSize;
-
-    private transient float rotation_TARGET_;
-
-    private transient float rotation_LAST_;
+    @Annotations.ReadOnly
+    protected transient boolean isRotate;
 
     protected DroneUnit() {
     }
 
     @Override
-    public boolean canMine() {
-        return type.mineSpeed * state.rules.unitMineSpeed(team()) > 0 && type.mineTier >= 0;
+    public void drawPlanTop(BuildPlan plan, float alpha) {
+        if (!plan.breaking) {
+            Draw.reset();
+            Draw.mixcol(Color.white, 0.24F + Mathf.absin(Time.globalTime, 6.0F, 0.28F));
+            Draw.alpha(alpha);
+            plan.block.drawPlanConfigTop(plan, plans);
+        }
     }
 
     @Override
-    public void move(float cx, float cy) {
-        SolidPred check = solidity();
-        if (check != null) {
-            collisions.move(this, cx, cy, check);
-        } else {
-            x += cx;
-            y += cy;
-        }
+    public Bits statusBits() {
+        return applied;
     }
 
     @Override
@@ -190,8 +189,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void approach(Vec2 vector) {
-        vel.approachDelta(vector, type.accel * speed());
+    public void clearBuilding() {
+        plans.clear();
     }
 
     @Override
@@ -200,9 +199,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void aimLook(float x, float y) {
-        aim(x, y);
-        lookAt(x, y);
+    public void statusDamageMultiplier(float damageMultiplier) {
+        applyDynamicStatus().damageMultiplier = damageMultiplier;
     }
 
     @Override
@@ -243,15 +241,46 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void moveAt(Vec2 vector, float acceleration) {
-        Vec2 t = tmp1.set(vector);
-        tmp2.set(t).sub(vel).limit(acceleration * vector.len() * Time.delta);
-        vel.add(tmp2);
+    public void writeSync(Writes write) {
+        mindustry.io.TypeIO.writeAbilities(write, this.abilities);
+        write.f(this.ammo);
+        mindustry.io.TypeIO.writeController(write, this.controller);
+        write.f(this.elevation);
+        write.d(this.flag);
+        write.f(this.health);
+        write.bool(this.isShooting);
+        mindustry.io.TypeIO.writeTile(write, this.mineTile);
+        mindustry.io.TypeIO.writeMounts(write, this.mounts);
+        mindustry.io.TypeIO.writePlansQueueNet(write, this.plans);
+        write.f(this.rotation);
+        write.f(this.shield);
+        write.bool(this.spawnedByCore);
+        mindustry.io.TypeIO.writeItems(write, this.stack);
+        write.i(this.statuses.size);
+        for(int INDEX = 0; INDEX < this.statuses.size; INDEX ++) {
+            mindustry.io.TypeIO.writeStatus(write, this.statuses.get(INDEX));
+        }
+        mindustry.io.TypeIO.writeTeam(write, this.team);
+        write.s(this.type.id);
+        write.bool(this.updateBuilding);
+        mindustry.io.TypeIO.writeVec2(write, this.vel);
+        write.f(this.x);
+        write.f(this.y);
+
     }
 
     @Override
-    public void clearBuilding() {
-        plans.clear();
+    public Item getMineResult(Tile tile) {
+        if (tile == null) return null;
+        Item result;
+        if (type.mineFloor && tile.block() == Blocks.air) {
+            result = tile.drop();
+        } else if (type.mineWalls) {
+            result = tile.wallDrop();
+        } else {
+            return null;
+        }
+        return canMine(result) ? result : null;
     }
 
     @Override
@@ -260,29 +289,16 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void lookAt(Position pos) {
-        lookAt(angleTo(pos));
+    public String getControllerName() {
+        if (isPlayer()) return getPlayer().coloredName();
+        if (controller instanceof LogicAI ai && ai.controller != null) return ai.controller.lastAccessed;
+        return null;
     }
 
     @Override
-    public void afterRead() {
-        hitbox: {
-            updateLastPosition();
-        }
-
-        unit: {
-            setType(this.type);
-            controller.unit(this);
-            if (!(controller instanceof AIController ai && ai.keepState())) {
-                controller(type.createController(this));
-            }
-        }
-
-        builder: {
-            if (plans == null) {
-                plans = new Queue<>(1);
-            }
-        }
+    public boolean canPass(int tileX, int tileY) {
+        SolidPred s = solidity();
+        return s == null || !s.solid(tileX, tileY);
     }
 
     @Override
@@ -307,38 +323,29 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void setProp(LAccess prop, double value) {
-        switch (prop) {
-        case health -> {
-            health = (float)Mathf.clamp(value, 0, maxHealth);
-            if (health <= 0.0F && !dead) {
+    public <T> T as() {
+        return (T)this;
+    }
+
+    @Override
+    public void rawDamage(float amount) {
+        boolean hadShields = shield > 1.0E-4F;
+        if (Float.isNaN(health)) health = 0.0F;
+        if (hadShields) {
+            shieldAlpha = 1.0F;
+        }
+        float shieldDamage = Math.min(Math.max(shield, 0), amount);
+        shield -= shieldDamage;
+        hitTime = 1.0F;
+        amount -= shieldDamage;
+        if (amount > 0 && type.killable) {
+            health -= amount;
+            if (health <= 0 && !dead) {
                 kill();
             }
-        }
-        case shield -> shield = Math.max((float)value, 0.0F);
-        case x -> {
-            x = World.unconv((float)value);
-            if (!isLocal()) snapInterpolation();
-        }
-        case y -> {
-            y = World.unconv((float)value);
-            if (!isLocal()) snapInterpolation();
-        }
-        case velocityX -> vel.x = (float)(value * tilesize / 60.0);
-        case velocityY -> vel.y = (float)(value * tilesize / 60.0);
-        case rotation -> rotation = (float)value;
-        case team -> {
-            if (!net.client()) {
-                Team team = Team.get((int)value);
-                if (controller instanceof Player p) {
-                    p.team(team);
-                }
-                this.team = team;
+            if (hadShields && shield <= 1.0E-4F) {
+                Fx.unitShieldBreak.at(x, y, 0, type.shieldColor(this), this);
             }
-        }
-        case flag -> flag = value;
-        case speed -> statusSpeed(Mathf.clamp((float)value, 0.0F, 1000.0F));
-        case armor -> statusArmor(Math.max((float)value, 0.0F));
         }
     }
 
@@ -348,8 +355,28 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public String toString() {
-        return "Unit#" + id() + ":" + type + " (" + x + ", " + y + ")";
+    public void drawBuilding() {
+        boolean active = activelyBuilding();
+        if (!active && lastActive == null) return;
+        Draw.z(Layer.flyingUnit);
+        BuildPlan plan = active ? buildPlan() : lastActive;
+        Tile tile = plan.tile();
+        var core = team.core();
+        if (tile == null || !within(plan, state.rules.infiniteResources ? Float.MAX_VALUE : type.buildRange)) {
+            return;
+        }
+        if (core != null && active && !isLocal() && !(tile.block() instanceof ConstructBlock)) {
+            Draw.z(Layer.plans - 1.0F);
+            drawPlan(plan, 0.5F);
+            drawPlanTop(plan, 0.5F);
+            Draw.z(Layer.flyingUnit);
+        }
+        if (type.drawBuildBeam) {
+            float focusLen = type.buildBeamOffset + Mathf.absin(Time.time, 3.0F, 0.6F);
+            float px = x + Angles.trnsx(rotation, focusLen);
+            float py = y + Angles.trnsy(rotation, focusLen);
+            drawBuildingBeam(px, py);
+        }
     }
 
     @Override
@@ -370,11 +397,6 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     @Override
     public boolean displayable() {
         return type.hoverable;
-    }
-
-    @Override
-    public void getCollisions(Cons<QuadTree> consumer) {
-
     }
 
     @Override
@@ -408,446 +430,6 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
                 }
             }
         }
-    }
-
-    @Override
-    public void statusDrag(float drag) {
-        applyDynamicStatus().dragMultiplier = type.drag == 0.0F ? 0.0F : drag / type.drag;
-    }
-
-    @Override
-    public Object senseObject(LAccess sensor) {
-        return switch (sensor) {
-        case type ->type;
-        case name ->controller instanceof Player p ? p.name : null;
-        case firstItem ->stack().amount == 0 ? null : item();
-        case controller ->!isValid() ? null : controller instanceof LogicAI log ? log.controller : this;
-        case payloadType ->((Object)this) instanceof Payloadc pay ? (pay.payloads().isEmpty() ? null : pay.payloads().peek() instanceof UnitPayload p1 ? p1.unit.type : pay.payloads().peek() instanceof BuildPayload p2 ? p2.block() : null) : null;
-        default ->noSensed;
-        };
-    }
-
-    @Override
-    public boolean activelyBuilding() {
-        if (isBuilding()) {
-            var plan = buildPlan();
-            if (!state.isEditor() && plan != null && !within(plan, state.rules.infiniteResources ? Float.MAX_VALUE : type.buildRange)) {
-                return false;
-            }
-        }
-        return isBuilding() && updateBuilding;
-    }
-
-    @Override
-    public void damage(float amount, boolean withEffect) {
-        float pre = hitTime;
-        damage(amount);
-        if (!withEffect) {
-            hitTime = pre;
-        }
-    }
-
-    @Override
-    public void drawPlanTop(BuildPlan plan, float alpha) {
-        if (!plan.breaking) {
-            Draw.reset();
-            Draw.mixcol(Color.white, 0.24F + Mathf.absin(Time.globalTime, 6.0F, 0.28F));
-            Draw.alpha(alpha);
-            plan.block.drawPlanConfigTop(plan, plans);
-        }
-    }
-
-    @Override
-    public void velAddNet(float vx, float vy) {
-        vel.add(vx, vy);
-        if (isRemote()) {
-            x += vx;
-            y += vy;
-        }
-    }
-
-    @Override
-    public void handleSyncHidden() {
-        unit: {
-            remove();
-            netClient.clearRemovedEntity(id);
-        }
-    }
-
-    @Override
-    public float clipSize() {
-        if (isBuilding()) {
-            return state.rules.infiniteResources ? Float.MAX_VALUE : Math.max(type.clipSize, type.region.width) + type.buildRange + tilesize * 4.0F;
-        }
-        if (mining()) {
-            return type.clipSize + type.mineRange;
-        }
-        return type.clipSize;
-    }
-
-    @Override
-    public void statusMaxHealth(float health) {
-        applyDynamicStatus().healthMultiplier = health / maxHealth;
-    }
-
-    @Override
-    public void snapInterpolation() {
-        updateSpacing = 16;
-        lastUpdated = Time.millis();
-        rotation_LAST_ = rotation;
-        rotation_TARGET_ = rotation;
-        x_LAST_ = x;
-        x_TARGET_ = x;
-        y_LAST_ = y;
-        y_TARGET_ = y;
-
-    }
-
-    @Override
-    public void aimLook(Position pos) {
-        aim(pos);
-        lookAt(pos);
-    }
-
-    @Override
-    public float hitSize() {
-        return hitSize;
-    }
-
-    @Override
-    public void set(Position pos) {
-        set(pos.getX(), pos.getY());
-    }
-
-    @Override
-    public void damageContinuousPierce(float amount) {
-        damagePierce(amount * Time.delta, hitTime <= -20 + hitDuration);
-    }
-
-    @Override
-    public void clampHealth() {
-        health = Math.min(health, maxHealth);
-        if (Float.isNaN(health)) health = 0.0F;
-    }
-
-    @Override
-    public void setWeaponRotation(float rotation) {
-        for (WeaponMount mount : mounts) {
-            mount.rotation = rotation;
-        }
-    }
-
-    @Override
-    public TextureRegion icon() {
-        return type.uiIcon;
-    }
-
-    @Override
-    public float deltaAngle() {
-        return Mathf.angle(deltaX, deltaY);
-    }
-
-    @Override
-    public boolean hasEffect(StatusEffect effect) {
-        return applied.get(effect.id);
-    }
-
-    @Override
-    public void draw() {
-        unit: {
-            type.draw(this);
-        }
-
-        status: {
-            for (StatusEntry e : statuses) {
-                e.effect.draw(this, e.time);
-            }
-        }
-    }
-
-    @Override
-    public void moveAt(Vec2 vector) {
-        moveAt(vector, type.accel);
-    }
-
-    @Override
-    public float getX() {
-        return x;
-    }
-
-    @Override
-    public void trns(Position pos) {
-        trns(pos.getX(), pos.getY());
-    }
-
-    @Override
-    public void snapSync() {
-        updateSpacing = 16;
-        lastUpdated = Time.millis();
-        rotation_LAST_ = rotation_TARGET_;
-        rotation = rotation_TARGET_;
-        x_LAST_ = x_TARGET_;
-        x = x_TARGET_;
-        y_LAST_ = y_TARGET_;
-        y = y_TARGET_;
-
-    }
-
-    @Override
-    public boolean canBuild() {
-        return type.buildSpeed > 0 && buildSpeedMultiplier > 0;
-    }
-
-    @Override
-    public boolean canDrown() {
-        return isGrounded() && type.canDrown;
-    }
-
-    @Override
-    public void landed() {
-        if (type.mechLandShake > 0.0F) {
-            Effect.shake(type.mechLandShake, type.mechLandShake, this);
-        }
-        type.landed(this);
-    }
-
-    @Override
-    public Floor floorOn() {
-        Tile tile = tileOn();
-        return tile == null || tile.block() != Blocks.air ? (Floor)Blocks.air : tile.floor();
-    }
-
-    @Override
-    public Block blockOn() {
-        Tile tile = tileOn();
-        return tile == null ? Blocks.air : tile.block();
-    }
-
-    @Override
-    public void clearStatuses() {
-        statuses.each((e)->e.effect.onRemoved(this));
-        statuses.clear();
-    }
-
-    @Override
-    public int count() {
-        return team.data().countType(type);
-    }
-
-    @Override
-    public boolean mining() {
-        return mineTile != null && !this.activelyBuilding();
-    }
-
-    @Override
-    public void wobble() {
-        x += Mathf.sin(Time.time + (id % 10) * 12, 25.0F, 0.05F) * Time.delta * elevation;
-        y += Mathf.cos(Time.time + (id % 10) * 12, 25.0F, 0.05F) * Time.delta * elevation;
-    }
-
-    @Override
-    public int cap() {
-        return Units.getCap(team);
-    }
-
-    @Override
-    public Item item() {
-        return stack.item;
-    }
-
-    @Override
-    public boolean isMissile() {
-        return this instanceof TimedKillc;
-    }
-
-    @Override
-    public boolean collides(Hitboxc other) {
-        return hittable();
-    }
-
-    @Override
-    public float getDuration(StatusEffect effect) {
-        var entry = statuses.find((e)->e.effect == effect);
-        return entry == null ? 0 : entry.time;
-    }
-
-    @Override
-    public boolean hasItem() {
-        return stack.amount > 0;
-    }
-
-    @Override
-    public boolean hittable() {
-        return type.hittable(this);
-    }
-
-    @Override
-    public boolean canPassOn() {
-        return canPass(tileX(), tileY());
-    }
-
-    @Override
-    public void unloaded() {
-
-    }
-
-    @Override
-    public void statusSpeed(float speed) {
-        applyDynamicStatus().speedMultiplier = speed / (type.speed * 60.0F / tilesize);
-    }
-
-    @Override
-    public boolean damaged() {
-        return health < maxHealth - 0.001F;
-    }
-
-    @Override
-    public EntityCollisions.SolidPred solidity() {
-        return null;
-    }
-
-    @Override
-    public String getControllerName() {
-        if (isPlayer()) return getPlayer().coloredName();
-        if (controller instanceof LogicAI ai && ai.controller != null) return ai.controller.lastAccessed;
-        return null;
-    }
-
-    @Override
-    public void writeSyncManual(FloatBuffer buffer) {
-        buffer.put(this.rotation);
-        buffer.put(this.x);
-        buffer.put(this.y);
-
-    }
-
-    @Override
-    public void statusArmor(float armor) {
-        applyDynamicStatus().armorOverride = armor;
-    }
-
-    @Override
-    public int maxAccepted(Item item) {
-        return stack.item != item && stack.amount > 0 ? 0 : itemCapacity() - stack.amount;
-    }
-
-    @Override
-    public boolean allowCommand() {
-        return controller instanceof CommandAI;
-    }
-
-    @Override
-    public void read(Reads read) {
-        this.abilities = mindustry.io.TypeIO.readAbilities(read, this.abilities);
-        this.ammo = read.f();
-        this.controller = mindustry.io.TypeIO.readController(read, this.controller);
-        this.elevation = read.f();
-        this.flag = read.d();
-        this.health = read.f();
-        this.isShooting = read.bool();
-        this.mineTile = mindustry.io.TypeIO.readTile(read);
-        this.mounts = mindustry.io.TypeIO.readMounts(read, this.mounts);
-        this.plans = mindustry.io.TypeIO.readPlansQueue(read);
-        this.rotation = read.f();
-        this.shield = read.f();
-        this.spawnedByCore = read.bool();
-        this.stack = mindustry.io.TypeIO.readItems(read, this.stack);
-        int statuses_LENGTH = read.i();
-        this.statuses.clear();
-        for(int INDEX = 0; INDEX < statuses_LENGTH; INDEX ++) {
-            mindustry.entities.units.StatusEntry statuses_ITEM = mindustry.io.TypeIO.readStatus(read);
-            if(statuses_ITEM != null) this.statuses.add(statuses_ITEM);
-        }
-        this.team = mindustry.io.TypeIO.readTeam(read);
-        this.type = Vars.content.getByID(ContentType.unit, read.s());
-        this.updateBuilding = read.bool();
-        this.vel = mindustry.io.TypeIO.readVec2(read, this.vel);
-        this.x = read.f();
-        this.y = read.f();
-        afterRead();
-    }
-
-    @Override
-    public double sense(Content content) {
-        if (content == stack().item) return stack().amount;
-        if (content instanceof UnitType u) {
-            return ((Object)this) instanceof Payloadc pay ? (pay.payloads().isEmpty() ? 0 : pay.payloads().count((p)->p instanceof UnitPayload up && up.unit.type == u)) : 0;
-        }
-        if (content instanceof Block b) {
-            return ((Object)this) instanceof Payloadc pay ? (pay.payloads().isEmpty() ? 0 : pay.payloads().count((p)->p instanceof BuildPayload bp && bp.build.block == b)) : 0;
-        }
-        return Float.NaN;
-    }
-
-    @Override
-    public CoreBlock.CoreBuild closestEnemyCore() {
-        return state.teams.closestEnemyCore(x, y, team);
-    }
-
-    @Override
-    public boolean canShoot() {
-        return !disarmed && !(type.canBoost && isFlying());
-    }
-
-    @Override
-    public Color statusColor() {
-        if (statuses.size == 0) {
-            return Tmp.c1.set(Color.white);
-        }
-        float r = 1.0F;
-        float g = 1.0F;
-        float b = 1.0F;
-        float total = 0.0F;
-        for (StatusEntry entry : statuses) {
-            float intensity = entry.time < 10.0F ? entry.time / 10.0F : 1.0F;
-            r += entry.effect.color.r * intensity;
-            g += entry.effect.color.g * intensity;
-            b += entry.effect.color.b * intensity;
-            total += intensity;
-        }
-        float count = statuses.size + total;
-        return Tmp.c1.set(r / count, g / count, b / count, 1.0F);
-    }
-
-    @Override
-    public boolean isBoss() {
-        return hasEffect(StatusEffects.boss);
-    }
-
-    @Override
-    public <T extends Entityc> T self() {
-        return (T)this;
-    }
-
-    @Override
-    public void statusReloadMultiplier(float reloadMultiplier) {
-        applyDynamicStatus().reloadMultiplier = reloadMultiplier;
-    }
-
-    @Override
-    public CommandAI command() {
-        if (controller instanceof CommandAI ai) {
-            return ai;
-        } else {
-            throw new IllegalArgumentException("Unit cannot be commanded - check isCommandable() first.");
-        }
-    }
-
-    @Override
-    public boolean isAdded() {
-        return added;
-    }
-
-    @Override
-    public void afterReadAll() {
-        unit: {
-            controller.afterRead(this);
-        }
-    }
-
-    @Override
-    public void addItem(Item item) {
-        addItem(item, 1);
     }
 
     @Override
@@ -893,115 +475,305 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void readSync(Reads read) {
-        if(lastUpdated != 0) updateSpacing = Time.timeSinceMillis(lastUpdated);
+    public Object senseObject(LAccess sensor) {
+        return switch (sensor) {
+        case type ->type;
+        case name ->controller instanceof Player p ? p.name : null;
+        case firstItem ->stack().amount == 0 ? null : item();
+        case controller ->!isValid() ? null : controller instanceof LogicAI log ? log.controller : this;
+        case payloadType ->((Object)this) instanceof Payloadc pay ? (pay.payloads().isEmpty() ? null : pay.payloads().peek() instanceof UnitPayload p1 ? p1.unit.type : pay.payloads().peek() instanceof BuildPayload p2 ? p2.block() : null) : null;
+        default ->noSensed;
+        };
+    }
+
+    @Override
+    public boolean activelyBuilding() {
+        if (isBuilding()) {
+            var plan = buildPlan();
+            if (!state.isEditor() && plan != null && !within(plan, state.rules.infiniteResources ? Float.MAX_VALUE : type.buildRange)) {
+                return false;
+            }
+        }
+        return isBuilding() && updateBuilding;
+    }
+
+    @Override
+    public void controlWeapons(boolean rotateShoot) {
+        controlWeapons(rotateShoot, rotateShoot);
+    }
+
+    @Override
+    public void damage(float amount, boolean withEffect) {
+        float pre = hitTime;
+        damage(amount);
+        if (!withEffect) {
+            hitTime = pre;
+        }
+    }
+
+    @Override
+    public boolean canShoot() {
+        return !disarmed && !(type.canBoost && isFlying());
+    }
+
+    @Override
+    public void velAddNet(float vx, float vy) {
+        vel.add(vx, vy);
+        if (isRemote()) {
+            x += vx;
+            y += vy;
+        }
+    }
+
+    @Override
+    public boolean damaged() {
+        return health < maxHealth - 0.001F;
+    }
+
+    @Override
+    public float clipSize() {
+        if (isBuilding()) {
+            return state.rules.infiniteResources ? Float.MAX_VALUE : Math.max(type.clipSize, type.region.width) + type.buildRange + tilesize * 4.0F;
+        }
+        if (mining()) {
+            return type.clipSize + type.mineRange;
+        }
+        return type.clipSize;
+    }
+
+    @Override
+    public void statusMaxHealth(float health) {
+        applyDynamicStatus().healthMultiplier = health / maxHealth;
+    }
+
+    @Override
+    public boolean validMine(Tile tile, boolean checkDst) {
+        if (tile == null) return false;
+        if (checkDst && !within(tile.worldx(), tile.worldy(), type.mineRange)) {
+            return false;
+        }
+        return getMineResult(tile) != null;
+    }
+
+    @Override
+    public void aimLook(Position pos) {
+        aim(pos);
+        lookAt(pos);
+    }
+
+    @Override
+    public float hitSize() {
+        return hitSize;
+    }
+
+    @Override
+    public void set(Position pos) {
+        set(pos.getX(), pos.getY());
+    }
+
+    @Override
+    public CommandAI command() {
+        if (controller instanceof CommandAI ai) {
+            return ai;
+        } else {
+            throw new IllegalArgumentException("Unit cannot be commanded - check isCommandable() first.");
+        }
+    }
+
+    @Override
+    public Tile tileOn() {
+        return world.tileWorld(x, y);
+    }
+
+    @Override
+    public boolean killable() {
+        return type.killable(this);
+    }
+
+    @Override
+    public TextureRegion icon() {
+        return type.uiIcon;
+    }
+
+    @Override
+    public float deltaAngle() {
+        return Mathf.angle(deltaX, deltaY);
+    }
+
+    @Override
+    public boolean hasEffect(StatusEffect effect) {
+        return applied.get(effect.id);
+    }
+
+    @Override
+    public void drawBuildingBeam(float px, float py) {
+        boolean active = activelyBuilding();
+        if (!active && lastActive == null) return;
+        Draw.z(Layer.flyingUnit);
+        BuildPlan plan = active ? buildPlan() : lastActive;
+        Tile tile = world.tile(plan.x, plan.y);
+        if (tile == null || !within(plan, state.rules.infiniteResources ? Float.MAX_VALUE : type.buildRange)) {
+            return;
+        }
+        int size = plan.breaking ? active ? tile.block().size : lastSize : plan.block.size;
+        float tx = plan.drawx();
+        float ty = plan.drawy();
+        Lines.stroke(1.0F, plan.breaking ? Pal.remove : Pal.accent);
+        Draw.z(Layer.buildBeam);
+        Draw.alpha(buildAlpha);
+        if (!active && !(tile.build instanceof ConstructBuild)) {
+            Fill.square(plan.drawx(), plan.drawy(), size * tilesize / 2.0F);
+        }
+        Drawf.buildBeam(px, py, tx, ty, Vars.tilesize * size / 2.0F);
+        Fill.square(px, py, 1.8F + Mathf.absin(Time.time, 2.2F, 1.1F), rotation + 45);
+        Draw.reset();
+        Draw.z(Layer.flyingUnit);
+    }
+
+    @Override
+    public void moveAt(Vec2 vector) {
+        moveAt(vector, type.accel);
+    }
+
+    @Override
+    public float getX() {
+        return x;
+    }
+
+    @Override
+    public void draw() {
+        unit: {
+            type.draw(this);
+        }
+
+        status: {
+            for (StatusEntry e : statuses) {
+                e.effect.draw(this, e.time);
+            }
+        }
+    }
+
+    @Override
+    public void snapSync() {
+        updateSpacing = 16;
         lastUpdated = Time.millis();
-        boolean islocal = isLocal();
-        this.abilities = mindustry.io.TypeIO.readAbilities(read, this.abilities);
-        this.ammo = read.f();
-        this.controller = mindustry.io.TypeIO.readController(read, this.controller);
-        if(!islocal) {
-            this.elevation = read.f();
-        } else {
-            read.f();
-        }
-        this.flag = read.d();
-        this.health = read.f();
-        this.isShooting = read.bool();
-        if(!islocal) {
-            this.mineTile = mindustry.io.TypeIO.readTile(read);
-        } else {
-            mindustry.io.TypeIO.readTile(read);
-        }
-        if(!islocal) {
-            this.mounts = mindustry.io.TypeIO.readMounts(read, this.mounts);
-        } else {
-            mindustry.io.TypeIO.readMounts(read);
-        }
-        if(!islocal) {
-            this.plans = mindustry.io.TypeIO.readPlansQueue(read);
-        } else {
-            mindustry.io.TypeIO.readPlansQueue(read);
-        }
-        if(!islocal) {
-            rotation_LAST_ = this.rotation;
-            this.rotation_TARGET_ = read.f();
-        } else {
-            read.f();
-            rotation_LAST_ = this.rotation;
-            rotation_TARGET_ = this.rotation;
-        }
-        this.shield = read.f();
-        this.spawnedByCore = read.bool();
-        this.stack = mindustry.io.TypeIO.readItems(read, this.stack);
-        int statuses_LENGTH = read.i();
-        this.statuses.clear();
-        for(int INDEX = 0; INDEX < statuses_LENGTH; INDEX ++) {
-            mindustry.entities.units.StatusEntry statuses_ITEM = mindustry.io.TypeIO.readStatus(read);
-            if(statuses_ITEM != null) this.statuses.add(statuses_ITEM);
-        }
-        this.team = mindustry.io.TypeIO.readTeam(read);
-        this.type = Vars.content.getByID(ContentType.unit, read.s());
-        if(!islocal) {
-            this.updateBuilding = read.bool();
-        } else {
-            read.bool();
-        }
-        if(!islocal) {
-            this.vel = mindustry.io.TypeIO.readVec2(read, this.vel);
-        } else {
-            mindustry.io.TypeIO.readVec2(read);
-        }
-        if(!islocal) {
-            x_LAST_ = this.x;
-            this.x_TARGET_ = read.f();
-        } else {
-            read.f();
-            x_LAST_ = this.x;
-            x_TARGET_ = this.x;
-        }
-        if(!islocal) {
-            y_LAST_ = this.y;
-            this.y_TARGET_ = read.f();
-        } else {
-            read.f();
-            y_LAST_ = this.y;
-            y_TARGET_ = this.y;
-        }
-        afterSync();
+        rotation_LAST_ = rotation_TARGET_;
+        rotation = rotation_TARGET_;
+        x_LAST_ = x_TARGET_;
+        x = x_TARGET_;
+        y_LAST_ = y_TARGET_;
+        y = y_TARGET_;
 
     }
 
     @Override
-    public int collisionLayer() {
-        return type.allowLegStep && type.legPhysicsLayer ? PhysicsProcess.layerLegs : isGrounded() ? PhysicsProcess.layerGround : PhysicsProcess.layerFlying;
-    }
-
-    @Override
-    public boolean isBuilding() {
-        return plans.size != 0;
-    }
-
-    @Override
-    public boolean offloadImmediately() {
-        return this.isPlayer();
-    }
-
-    @Override
-    public void move(Vec2 v) {
-        move(v.x, v.y);
-    }
-
-    @Override
-    public float prefRotation() {
-        if (activelyBuilding() && type.rotateToBuilding) {
-            return angleTo(buildPlan());
-        } else if (mineTile != null) {
-            return angleTo(mineTile);
-        } else if (moving() && type.omniMovement) {
-            return vel().angle();
+    public void destroy() {
+        if (!isAdded() || !killable()) return;
+        float explosiveness = 2.0F + item().explosiveness * stack().amount * 1.53F;
+        float flammability = item().flammability * stack().amount / 1.9F;
+        float power = item().charge * Mathf.pow(stack().amount, 1.11F) * 160.0F;
+        if (!spawnedByCore) {
+            Damage.dynamicExplosion(x, y, flammability, explosiveness, power, (bounds() + type.legLength / 1.7F) / 2.0F, state.rules.damageExplosions && state.rules.unitCrashDamage(team) > 0, item().flammability > 1, team, type.deathExplosionEffect);
+        } else {
+            type.deathExplosionEffect.at(x, y, bounds() / 2.0F / 8.0F);
         }
-        return rotation;
+        float shake = type.deathShake < 0 ? hitSize / 3.0F : type.deathShake;
+        if (type.createScorch) {
+            Effect.scorch(x, y, (int)(hitSize / 5));
+        }
+        Effect.shake(shake, shake, this);
+        type.deathSound.at(this);
+        Events.fire(new UnitDestroyEvent(this));
+        if (explosiveness > 7.0F && (isLocal() || wasPlayer)) {
+            Events.fire(Trigger.suicideBomb);
+        }
+        for (WeaponMount mount : mounts) {
+            if (mount.weapon.shootOnDeath && !(mount.weapon.bullet.killShooter && mount.totalShots > 0)) {
+                mount.reload = 0.0F;
+                mount.shoot = true;
+                mount.weapon.update(this, mount);
+            }
+        }
+        if (type.flying && !spawnedByCore && type.createWreck && state.rules.unitCrashDamage(team) > 0) {
+            var shields = indexer.getEnemy(team, BlockFlag.shield);
+            float crashDamage = Mathf.pow(hitSize, 0.75F) * type.crashDamageMultiplier * 2.5F * state.rules.unitCrashDamage(team);
+            if (shields.isEmpty() || !shields.contains((b)->b instanceof ExplosionShield s && s.absorbExplosion(x, y, crashDamage))) {
+                Damage.damage(team, x, y, Mathf.pow(hitSize, 0.94F) * 1.25F, crashDamage, true, false, true);
+            }
+        }
+        if (!headless && type.createScorch) {
+            for (int i = 0; i < type.wreckRegions.length; i++) {
+                if (type.wreckRegions[i].found()) {
+                    float range = type.hitSize / 4.0F;
+                    Tmp.v1.rnd(range);
+                    Effect.decal(type.wreckRegions[i], x + Tmp.v1.x, y + Tmp.v1.y, rotation - 90);
+                }
+            }
+        }
+        for (Ability a : abilities) {
+            a.death(this);
+        }
+        type.killed(this);
+        remove();
+    }
+
+    @Override
+    public boolean canDrown() {
+        return isGrounded() && type.canDrown;
+    }
+
+    @Override
+    public void drawBuildPlans() {
+        for (int i = 0; i < 2; i++) {
+            for (BuildPlan plan : plans) {
+                if (plan.progress > 0.01F || (buildPlan() == plan && plan.initialized && (within(plan.x * tilesize, plan.y * tilesize, type.buildRange) || state.isEditor()))) continue;
+                if (i == 0) {
+                    drawPlan(plan, 1.0F);
+                } else {
+                    drawPlanTop(plan, 1.0F);
+                }
+            }
+        }
+        Draw.reset();
+    }
+
+    @Override
+    public Floor floorOn() {
+        Tile tile = tileOn();
+        return tile == null || tile.block() != Blocks.air ? (Floor)Blocks.air : tile.floor();
+    }
+
+    @Override
+    public Block blockOn() {
+        Tile tile = tileOn();
+        return tile == null ? Blocks.air : tile.block();
+    }
+
+    @Override
+    public void clearStatuses() {
+        statuses.each((e)->e.effect.onRemoved(this));
+        statuses.clear();
+    }
+
+    @Override
+    public int count() {
+        return team.data().countType(type);
+    }
+
+    @Override
+    public boolean mining() {
+        return mineTile != null && !this.activelyBuilding();
+    }
+
+    @Override
+    public void wobble() {
+        x += Mathf.sin(Time.time + (id % 10) * 12, 25.0F, 0.05F) * Time.delta * elevation;
+        y += Mathf.cos(Time.time + (id % 10) * 12, 25.0F, 0.05F) * Time.delta * elevation;
+    }
+
+    @Override
+    public boolean isAI() {
+        return controller instanceof AIController;
     }
 
     @Override
@@ -1034,6 +806,339 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
+    public Item item() {
+        return stack.item;
+    }
+
+    @Override
+    public boolean isMissile() {
+        return this instanceof TimedKillc;
+    }
+
+    @Override
+    public boolean collides(Hitboxc other) {
+        return hittable();
+    }
+
+    @Override
+    public float getDuration(StatusEffect effect) {
+        var entry = statuses.find((e)->e.effect == effect);
+        return entry == null ? 0 : entry.time;
+    }
+
+    @Override
+    public float ammof() {
+        return ammo / type.ammoCapacity;
+    }
+
+    @Override
+    public boolean hittable() {
+        return type.hittable(this);
+    }
+
+    @Override
+    public boolean canPassOn() {
+        return canPass(tileX(), tileY());
+    }
+
+    @Override
+    public void unloaded() {
+
+    }
+
+    @Override
+    public void statusSpeed(float speed) {
+        applyDynamicStatus().speedMultiplier = speed / (type.speed * 60.0F / tilesize);
+    }
+
+    @Override
+    public void add() {
+        if(added) return;
+        Groups.all.add(this);
+        Groups.sync.add(this);
+        Groups.draw.add(this);
+        Groups.unit.add(this);
+
+        hitbox: {
+            updateLastPosition();
+        }
+
+        entity: {
+            added = true;
+        }
+
+        drone: {
+            DroneUnitType type = (DroneUnitType)this.type;
+            rotors = new Rotor.RotorMount[type.rotors.size];
+            for (int i = 0; i < rotors.length; i++) {
+                Rotor rotor = type.rotors.get(i);
+                rotors[i] = new Rotor.RotorMount(rotor);
+                rotors[i].rotorRot = rotor.rotOffset;
+                rotors[i].rotorShadeRot = rotor.rotOffset;
+                if (dead || health < 0.0F) {
+                    if (Mathf.chanceDelta(type.fallSmokeChance)) {
+                        Fx.fallSmoke.at(rotor.x, rotor.y);
+                        Fx.burning.at(rotor.x, rotor.y);
+                    }
+                }
+            }
+        }
+
+        unit: {
+            team.data().updateCount(type, 1);
+            if (type.useUnitCap && count() > cap() && !spawnedByCore && !dead && !state.rules.editor) {
+                Call.unitCapDeath(this);
+                team.data().updateCount(type, -1);
+            }
+        }
+    }
+
+    @Override
+    public void interpolate() {
+        if(lastUpdated != 0 && updateSpacing != 0) {
+            float timeSinceUpdate = Time.timeSinceMillis(lastUpdated);
+            float alpha = Math.min(timeSinceUpdate / updateSpacing, 2f);
+            rotation = (Mathf.slerp(rotation_LAST_, rotation_TARGET_, alpha));
+            x = (Mathf.lerp(x_LAST_, x_TARGET_, alpha));
+            y = (Mathf.lerp(y_LAST_, y_TARGET_, alpha));
+        } else if(lastUpdated != 0) {
+            rotation = rotation_TARGET_;
+            x = x_TARGET_;
+            y = y_TARGET_;
+        }
+
+    }
+
+    @Override
+    public EntityCollisions.SolidPred solidity() {
+        return null;
+    }
+
+    @Override
+    public void setProp(LAccess prop, double value) {
+        switch (prop) {
+        case health -> {
+            health = (float)Mathf.clamp(value, 0, maxHealth);
+            if (health <= 0.0F && !dead) {
+                kill();
+            }
+        }
+        case shield -> shield = Math.max((float)value, 0.0F);
+        case x -> {
+            x = World.unconv((float)value);
+            if (!isLocal()) snapInterpolation();
+        }
+        case y -> {
+            y = World.unconv((float)value);
+            if (!isLocal()) snapInterpolation();
+        }
+        case velocityX -> vel.x = (float)(value * tilesize / 60.0);
+        case velocityY -> vel.y = (float)(value * tilesize / 60.0);
+        case rotation -> rotation = (float)value;
+        case team -> {
+            if (!net.client()) {
+                Team team = Team.get((int)value);
+                if (controller instanceof Player p) {
+                    p.team(team);
+                }
+                this.team = team;
+            }
+        }
+        case flag -> flag = value;
+        case speed -> statusSpeed(Mathf.clamp((float)value, 0.0F, 1000.0F));
+        case armor -> statusArmor(Math.max((float)value, 0.0F));
+        }
+    }
+
+    @Override
+    public void writeSyncManual(FloatBuffer buffer) {
+        buffer.put(this.rotation);
+        buffer.put(this.x);
+        buffer.put(this.y);
+
+    }
+
+    @Override
+    public void statusArmor(float armor) {
+        applyDynamicStatus().armorOverride = armor;
+    }
+
+    @Override
+    public int maxAccepted(Item item) {
+        return stack.item != item && stack.amount > 0 ? 0 : itemCapacity() - stack.amount;
+    }
+
+    @Override
+    public boolean checkTarget(boolean targetAir, boolean targetGround) {
+        return (isGrounded() && targetGround) || (isFlying() && targetAir);
+    }
+
+    @Override
+    public void read(Reads read) {
+        this.abilities = mindustry.io.TypeIO.readAbilities(read, this.abilities);
+        this.ammo = read.f();
+        this.controller = mindustry.io.TypeIO.readController(read, this.controller);
+        this.elevation = read.f();
+        this.flag = read.d();
+        this.health = read.f();
+        this.isShooting = read.bool();
+        this.mineTile = mindustry.io.TypeIO.readTile(read);
+        this.mounts = mindustry.io.TypeIO.readMounts(read, this.mounts);
+        this.plans = mindustry.io.TypeIO.readPlansQueue(read);
+        this.rotation = read.f();
+        this.shield = read.f();
+        this.spawnedByCore = read.bool();
+        this.stack = mindustry.io.TypeIO.readItems(read, this.stack);
+        int statuses_LENGTH = read.i();
+        this.statuses.clear();
+        for(int INDEX = 0; INDEX < statuses_LENGTH; INDEX ++) {
+            mindustry.entities.units.StatusEntry statuses_ITEM = mindustry.io.TypeIO.readStatus(read);
+            if(statuses_ITEM != null) this.statuses.add(statuses_ITEM);
+        }
+        this.team = mindustry.io.TypeIO.readTeam(read);
+        this.type = Vars.content.getByID(ContentType.unit, read.s());
+        this.updateBuilding = read.bool();
+        this.vel = mindustry.io.TypeIO.readVec2(read, this.vel);
+        this.x = read.f();
+        this.y = read.f();
+        afterRead();
+    }
+
+    @Override
+    public String toString() {
+        return "Unit#" + id() + ":" + type + " (" + x + ", " + y + ")";
+    }
+
+    @Override
+    public CoreBlock.CoreBuild closestEnemyCore() {
+        return state.teams.closestEnemyCore(x, y, team);
+    }
+
+    @Override
+    public void damageContinuousPierce(float amount) {
+        damagePierce(amount * Time.delta, hitTime <= -20 + hitDuration);
+    }
+
+    @Override
+    public Color statusColor() {
+        if (statuses.size == 0) {
+            return Tmp.c1.set(Color.white);
+        }
+        float r = 1.0F;
+        float g = 1.0F;
+        float b = 1.0F;
+        float total = 0.0F;
+        for (StatusEntry entry : statuses) {
+            float intensity = entry.time < 10.0F ? entry.time / 10.0F : 1.0F;
+            r += entry.effect.color.r * intensity;
+            g += entry.effect.color.g * intensity;
+            b += entry.effect.color.b * intensity;
+            total += intensity;
+        }
+        float count = statuses.size + total;
+        return Tmp.c1.set(r / count, g / count, b / count, 1.0F);
+    }
+
+    @Override
+    public void clampHealth() {
+        health = Math.min(health, maxHealth);
+        if (Float.isNaN(health)) health = 0.0F;
+    }
+
+    @Override
+    public <T extends Entityc> T self() {
+        return (T)this;
+    }
+
+    @Override
+    public void rotateMove(Vec2 vec) {
+        moveAt(Tmp.v2.trns(rotation, vec.len()));
+        if (!vec.isZero()) {
+            rotation = Angles.moveToward(rotation, vec.angle(), type.rotateSpeed * Time.delta * speedMultiplier);
+        }
+    }
+
+    @Override
+    public void controlWeapons(boolean rotate, boolean shoot) {
+        for (WeaponMount mount : mounts) {
+            if (mount.weapon.controllable) {
+                mount.rotate = rotate;
+                mount.shoot = shoot;
+            }
+        }
+        isRotate = rotate;
+        isShooting = shoot;
+    }
+
+    @Override
+    public boolean isAdded() {
+        return added;
+    }
+
+    @Override
+    public void afterReadAll() {
+        unit: {
+            controller.afterRead(this);
+        }
+    }
+
+    @Override
+    public boolean allowCommand() {
+        return controller instanceof CommandAI;
+    }
+
+    @Override
+    public void setupWeapons(UnitType def) {
+        mounts = new WeaponMount[def.weapons.size];
+        for (int i = 0; i < mounts.length; i++) {
+            mounts[i] = def.weapons.get(i).mountType.get(def.weapons.get(i));
+        }
+    }
+
+    @Override
+    public void hitboxTile(Rect rect) {
+        float size = Math.min(hitSize * 0.66F, 7.8F);
+        rect.setCentered(x, y, size, size);
+    }
+
+    @Override
+    public int cap() {
+        return Units.getCap(team);
+    }
+
+    @Override
+    public boolean isBuilding() {
+        return plans.size != 0;
+    }
+
+    @Override
+    public boolean offloadImmediately() {
+        return this.isPlayer();
+    }
+
+    @Override
+    public int collisionLayer() {
+        return type.allowLegStep && type.legPhysicsLayer ? PhysicsProcess.layerLegs : isGrounded() ? PhysicsProcess.layerGround : PhysicsProcess.layerFlying;
+    }
+
+    @Override
+    public float mass() {
+        return hitSize * hitSize * Mathf.pi;
+    }
+
+    @Override
+    public float prefRotation() {
+        if (activelyBuilding() && type.rotateToBuilding) {
+            return angleTo(buildPlan());
+        } else if (mineTile != null) {
+            return angleTo(mineTile);
+        } else if (moving() && type.omniMovement) {
+            return vel().angle();
+        }
+        return rotation;
+    }
+
+    @Override
     public boolean cheating() {
         return team.rules().cheat;
     }
@@ -1042,24 +1147,12 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     public void remove() {
         if(!added) return;
         Groups.all.remove(this);
-        Groups.draw.remove(this);
         Groups.sync.remove(this);
+        Groups.draw.remove(this);
         Groups.unit.remove(this);
 
         entity: {
             added = false;
-        }
-
-        weapons: {
-            for (WeaponMount mount : mounts) {
-                if (mount.weapon.continuous && mount.bullet != null && mount.bullet.owner == this) {
-                    mount.bullet.time = mount.bullet.lifetime - 10.0F;
-                    mount.bullet = null;
-                }
-                if (mount.sound != null) {
-                    mount.sound.stop();
-                }
-            }
         }
 
         sync: {
@@ -1075,18 +1168,32 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
                 Fx.trailFade.at(x, y, trail.width(), type.trailColor == null ? team.color : type.trailColor, trail.copy());
             }
         }
+
+        weapons: {
+            for (WeaponMount mount : mounts) {
+                if (mount.weapon.continuous && mount.bullet != null && mount.bullet.owner == this) {
+                    mount.bullet.time = mount.bullet.lifetime - 10.0F;
+                    mount.bullet = null;
+                }
+                if (mount.sound != null) {
+                    mount.sound.stop();
+                }
+            }
+        }
     }
 
     @Override
-    public float deltaLen() {
-        return Mathf.len(deltaX, deltaY);
+    public void getCollisions(Cons<QuadTree> consumer) {
+
     }
 
     @Override
-    public float speed() {
-        float strafePenalty = isGrounded() || !isPlayer() ? 1.0F : Mathf.lerp(1.0F, type.strafePenalty, Angles.angleDist(vel().angle(), rotation) / 180.0F);
-        float boost = Mathf.lerp(1.0F, type.canBoost ? type.boostMultiplier : 1.0F, elevation);
-        return type.speed * strafePenalty * boost * floorSpeedMultiplier();
+    public void movePref(Vec2 movement) {
+        if (type.omniMovement) {
+            moveAt(movement);
+        } else {
+            rotateMove(movement);
+        }
     }
 
     @Override
@@ -1095,8 +1202,11 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public Tile tileOn() {
-        return world.tileWorld(x, y);
+    public void landed() {
+        if (type.mechLandShake > 0.0F) {
+            Effect.shake(type.mechLandShake, type.mechLandShake, this);
+        }
+        type.landed(this);
     }
 
     @Override
@@ -1134,18 +1244,46 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
+    public void afterRead() {
+        builder: {
+            if (plans == null) {
+                plans = new Queue<>(1);
+            }
+        }
+
+        hitbox: {
+            updateLastPosition();
+        }
+
+        unit: {
+            setType(this.type);
+            controller.unit(this);
+            if (!(controller instanceof AIController ai && ai.keepState())) {
+                controller(type.createController(this));
+            }
+        }
+    }
+
+    @Override
     public float bounds() {
         return hitSize * 2.0F;
     }
 
     @Override
-    public void statusDamageMultiplier(float damageMultiplier) {
-        applyDynamicStatus().damageMultiplier = damageMultiplier;
+    public void heal() {
+        dead = false;
+        health = maxHealth;
     }
 
     @Override
-    public boolean checkTarget(boolean targetAir, boolean targetGround) {
-        return (isGrounded() && targetGround) || (isFlying() && targetAir);
+    public void move(float cx, float cy) {
+        SolidPred check = solidity();
+        if (check != null) {
+            collisions.move(this, cx, cy, check);
+        } else {
+            x += cx;
+            y += cy;
+        }
     }
 
     @Override
@@ -1175,11 +1313,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void setupWeapons(UnitType def) {
-        mounts = new WeaponMount[def.weapons.size];
-        for (int i = 0; i < mounts.length; i++) {
-            mounts[i] = def.weapons.get(i).mountType.get(def.weapons.get(i));
-        }
+    public boolean isEnemy() {
+        return type.isEnemy;
     }
 
     @Override
@@ -1277,38 +1412,20 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public boolean validMine(Tile tile, boolean checkDst) {
-        if (tile == null) return false;
-        if (checkDst && !within(tile.worldx(), tile.worldy(), type.mineRange)) {
-            return false;
-        }
-        return getMineResult(tile) != null;
+    public Floor drownFloor() {
+        return floorOn();
     }
 
     @Override
-    public boolean killable() {
-        return type.killable(this);
+    public void statusReloadMultiplier(float reloadMultiplier) {
+        applyDynamicStatus().reloadMultiplier = reloadMultiplier;
     }
 
     @Override
-    public void drawBuildPlans() {
-        for (int i = 0; i < 2; i++) {
-            for (BuildPlan plan : plans) {
-                if (plan.progress > 0.01F || (buildPlan() == plan && plan.initialized && (within(plan.x * tilesize, plan.y * tilesize, type.buildRange) || state.isEditor()))) continue;
-                if (i == 0) {
-                    drawPlan(plan, 1.0F);
-                } else {
-                    drawPlanTop(plan, 1.0F);
-                }
-            }
-        }
-        Draw.reset();
-    }
-
-    @Override
-    public void hitboxTile(Rect rect) {
-        float size = Math.min(hitSize * 0.66F, 7.8F);
-        rect.setCentered(x, y, size, size);
+    public float speed() {
+        float strafePenalty = isGrounded() || !isPlayer() ? 1.0F : Mathf.lerp(1.0F, type.strafePenalty, Angles.angleDist(vel().angle(), rotation) / 180.0F);
+        float boost = Mathf.lerp(1.0F, type.canBoost ? type.boostMultiplier : 1.0F, elevation);
+        return type.speed * strafePenalty * boost * floorSpeedMultiplier();
     }
 
     @Override
@@ -1317,8 +1434,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public int tileY() {
-        return World.toTile(y);
+    public void move(Vec2 v) {
+        move(v.x, v.y);
     }
 
     @Override
@@ -1332,8 +1449,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void controlWeapons(boolean rotateShoot) {
-        controlWeapons(rotateShoot, rotateShoot);
+    public void lookAt(float angle) {
+        rotation = Angles.moveToward(rotation, angle, type.rotateSpeed * Time.delta * speedMultiplier());
     }
 
     @Override
@@ -1351,20 +1468,15 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void controlWeapons(boolean rotate, boolean shoot) {
+    public void setWeaponRotation(float rotation) {
         for (WeaponMount mount : mounts) {
-            if (mount.weapon.controllable) {
-                mount.rotate = rotate;
-                mount.shoot = shoot;
-            }
+            mount.rotation = rotation;
         }
-        isRotate = rotate;
-        isShooting = shoot;
     }
 
     @Override
-    public Floor drownFloor() {
-        return floorOn();
+    public boolean isBoss() {
+        return hasEffect(StatusEffects.boss);
     }
 
     @Override
@@ -1373,59 +1485,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void add() {
-        if(added) return;
-        Groups.all.add(this);
-        Groups.draw.add(this);
-        Groups.sync.add(this);
-        Groups.unit.add(this);
-
-        entity: {
-            added = true;
-        }
-
-        drone: {
-            DroneUnitType type = (DroneUnitType)this.type;
-            rotors = new Rotor.RotorMount[type.rotors.size];
-            for (int i = 0; i < rotors.length; i++) {
-                Rotor rotor = type.rotors.get(i);
-                rotors[i] = new Rotor.RotorMount(rotor);
-                rotors[i].rotorRot = rotor.rotOffset;
-                rotors[i].rotorShadeRot = rotor.rotOffset;
-                if (dead || health < 0.0F) {
-                    if (Mathf.chanceDelta(type.fallSmokeChance)) {
-                        Fx.fallSmoke.at(rotor.x, rotor.y);
-                        Fx.burning.at(rotor.x, rotor.y);
-                    }
-                }
-            }
-        }
-
-        hitbox: {
-            updateLastPosition();
-        }
-
-        unit: {
-            team.data().updateCount(type, 1);
-            if (type.useUnitCap && count() > cap() && !spawnedByCore && !dead && !state.rules.editor) {
-                Call.unitCapDeath(this);
-                team.data().updateCount(type, -1);
-            }
-        }
-    }
-
-    @Override
-    public Item getMineResult(Tile tile) {
-        if (tile == null) return null;
-        Item result;
-        if (type.mineFloor && tile.block() == Blocks.air) {
-            result = tile.drop();
-        } else if (type.mineWalls) {
-            result = tile.wallDrop();
-        } else {
-            return null;
-        }
-        return canMine(result) ? result : null;
+    public boolean hasItem() {
+        return stack.amount > 0;
     }
 
     @Override
@@ -1440,24 +1501,21 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
+    public void handleSyncHidden() {
+        unit: {
+            remove();
+            netClient.clearRemovedEntity(id);
+        }
+    }
+
+    @Override
     public boolean isPathImpassable(int tileX, int tileY) {
         return !type.flying && world.tiles.in(tileX, tileY) && type.pathCost.getCost(team.id, pathfinder.get(tileX, tileY)) == -1;
     }
 
     @Override
-    public void interpolate() {
-        if(lastUpdated != 0 && updateSpacing != 0) {
-            float timeSinceUpdate = Time.timeSinceMillis(lastUpdated);
-            float alpha = Math.min(timeSinceUpdate / updateSpacing, 2f);
-            rotation = (Mathf.slerp(rotation_LAST_, rotation_TARGET_, alpha));
-            x = (Mathf.lerp(x_LAST_, x_TARGET_, alpha));
-            y = (Mathf.lerp(y_LAST_, y_TARGET_, alpha));
-        } else if(lastUpdated != 0) {
-            rotation = rotation_TARGET_;
-            x = x_TARGET_;
-            y = y_TARGET_;
-        }
-
+    public void trns(Position pos) {
+        trns(pos.getX(), pos.getY());
     }
 
     @Override
@@ -1506,28 +1564,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void drawBuilding() {
-        boolean active = activelyBuilding();
-        if (!active && lastActive == null) return;
-        Draw.z(Layer.flyingUnit);
-        BuildPlan plan = active ? buildPlan() : lastActive;
-        Tile tile = plan.tile();
-        var core = team.core();
-        if (tile == null || !within(plan, state.rules.infiniteResources ? Float.MAX_VALUE : type.buildRange)) {
-            return;
-        }
-        if (core != null && active && !isLocal() && !(tile.block() instanceof ConstructBlock)) {
-            Draw.z(Layer.plans - 1.0F);
-            drawPlan(plan, 0.5F);
-            drawPlanTop(plan, 0.5F);
-            Draw.z(Layer.flyingUnit);
-        }
-        if (type.drawBuildBeam) {
-            float focusLen = type.buildBeamOffset + Mathf.absin(Time.time, 3.0F, 0.6F);
-            float px = x + Angles.trnsx(rotation, focusLen);
-            float py = y + Angles.trnsy(rotation, focusLen);
-            drawBuildingBeam(px, py);
-        }
+    public void addItem(Item item) {
+        addItem(item, 1);
     }
 
     @Override
@@ -1545,35 +1583,6 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
             }
         }
         if (controller == null) controller(type.createController(this));
-    }
-
-    @Override
-    public void writeSync(Writes write) {
-        mindustry.io.TypeIO.writeAbilities(write, this.abilities);
-        write.f(this.ammo);
-        mindustry.io.TypeIO.writeController(write, this.controller);
-        write.f(this.elevation);
-        write.d(this.flag);
-        write.f(this.health);
-        write.bool(this.isShooting);
-        mindustry.io.TypeIO.writeTile(write, this.mineTile);
-        mindustry.io.TypeIO.writeMounts(write, this.mounts);
-        mindustry.io.TypeIO.writePlansQueueNet(write, this.plans);
-        write.f(this.rotation);
-        write.f(this.shield);
-        write.bool(this.spawnedByCore);
-        mindustry.io.TypeIO.writeItems(write, this.stack);
-        write.i(this.statuses.size);
-        for(int INDEX = 0; INDEX < this.statuses.size; INDEX ++) {
-            mindustry.io.TypeIO.writeStatus(write, this.statuses.get(INDEX));
-        }
-        mindustry.io.TypeIO.writeTeam(write, this.team);
-        write.s(this.type.id);
-        write.bool(this.updateBuilding);
-        mindustry.io.TypeIO.writeVec2(write, this.vel);
-        write.f(this.x);
-        write.f(this.y);
-
     }
 
     @Override
@@ -1599,14 +1608,14 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
             }
         }
 
-        shield: {
-            shieldAlpha -= Time.delta / 15.0F;
-            if (shieldAlpha < 0) shieldAlpha = 0.0F;
+        builder: {
+            updateBuildLogic();
         }
 
-        items: {
-            stack.amount = Mathf.clamp(stack.amount, 0, itemCapacity());
-            itemTime = Mathf.lerpDelta(itemTime, Mathf.num(hasItem()), 0.05F);
+        sync: {
+            if ((Vars.net.client() && !isLocal()) || isRemote()) {
+                interpolate();
+            }
         }
 
         drone: {
@@ -1619,18 +1628,6 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
             }
             for (Rotor.RotorMount rotor : rotors) {
                 rotor.rotorRot += ((rotor.rotor.rotorSpeed * rotSpeedScl) + rotor.rotor.minimumRotorSpeed) * Time.delta;
-            }
-        }
-
-        weapons: {
-            for (WeaponMount mount : mounts) {
-                mount.weapon.update(this, mount);
-            }
-        }
-
-        sync: {
-            if ((Vars.net.client() && !isLocal()) || isRemote()) {
-                interpolate();
             }
         }
 
@@ -1774,6 +1771,10 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
             }
         }
 
+        health: {
+            hitTime -= Time.delta / hitDuration;
+        }
+
         status: {
             Floor floor = floorOn();
             if (isGrounded() && !type.hovering) {
@@ -1819,12 +1820,20 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
             }
         }
 
-        health: {
-            hitTime -= Time.delta / hitDuration;
+        items: {
+            stack.amount = Mathf.clamp(stack.amount, 0, itemCapacity());
+            itemTime = Mathf.lerpDelta(itemTime, Mathf.num(hasItem()), 0.05F);
         }
 
-        builder: {
-            updateBuildLogic();
+        weapons: {
+            for (WeaponMount mount : mounts) {
+                mount.weapon.update(this, mount);
+            }
+        }
+
+        shield: {
+            shieldAlpha -= Time.delta / 15.0F;
+            if (shieldAlpha < 0) shieldAlpha = 0.0F;
         }
 
         miner: {
@@ -1985,30 +1994,26 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void rawDamage(float amount) {
-        boolean hadShields = shield > 1.0E-4F;
-        if (Float.isNaN(health)) health = 0.0F;
-        if (hadShields) {
-            shieldAlpha = 1.0F;
-        }
-        float shieldDamage = Math.min(Math.max(shield, 0), amount);
-        shield -= shieldDamage;
-        hitTime = 1.0F;
-        amount -= shieldDamage;
-        if (amount > 0 && type.killable) {
-            health -= amount;
-            if (health <= 0 && !dead) {
-                kill();
-            }
-            if (hadShields && shield <= 1.0E-4F) {
-                Fx.unitShieldBreak.at(x, y, 0, type.shieldColor(this), this);
-            }
-        }
+    public void aim(Position pos) {
+        aim(pos.getX(), pos.getY());
     }
 
     @Override
-    public void aim(Position pos) {
-        aim(pos.getX(), pos.getY());
+    public double sense(Content content) {
+        if (content == stack().item) return stack().amount;
+        if (content instanceof UnitType u) {
+            return ((Object)this) instanceof Payloadc pay ? (pay.payloads().isEmpty() ? 0 : pay.payloads().count((p)->p instanceof UnitPayload up && up.unit.type == u)) : 0;
+        }
+        if (content instanceof Block b) {
+            return ((Object)this) instanceof Payloadc pay ? (pay.payloads().isEmpty() ? 0 : pay.payloads().count((p)->p instanceof BuildPayload bp && bp.build.block == b)) : 0;
+        }
+        return Float.NaN;
+    }
+
+    @Override
+    public void kill() {
+        if (dead || net.client() || !killable()) return;
+        Call.unitDeath(id);
     }
 
     @Override
@@ -2023,8 +2028,13 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void trns(float x, float y) {
-        set(this.x + x, this.y + y);
+    public void lookAt(Position pos) {
+        lookAt(angleTo(pos));
+    }
+
+    @Override
+    public int tileY() {
+        return World.toTile(y);
     }
 
     @Override
@@ -2033,8 +2043,9 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public Bits statusBits() {
-        return applied;
+    public void aimLook(float x, float y) {
+        aim(x, y);
+        lookAt(x, y);
     }
 
     @Override
@@ -2050,14 +2061,88 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void heal() {
-        dead = false;
-        health = maxHealth;
+    public boolean canMine() {
+        return type.mineSpeed * state.rules.unitMineSpeed(team()) > 0 && type.mineTier >= 0;
     }
 
     @Override
-    public void lookAt(float angle) {
-        rotation = Angles.moveToward(rotation, angle, type.rotateSpeed * Time.delta * speedMultiplier());
+    public void readSync(Reads read) {
+        if(lastUpdated != 0) updateSpacing = Time.timeSinceMillis(lastUpdated);
+        lastUpdated = Time.millis();
+        boolean islocal = isLocal();
+        this.abilities = mindustry.io.TypeIO.readAbilities(read, this.abilities);
+        this.ammo = read.f();
+        this.controller = mindustry.io.TypeIO.readController(read, this.controller);
+        if(!islocal) {
+            this.elevation = read.f();
+        } else {
+            read.f();
+        }
+        this.flag = read.d();
+        this.health = read.f();
+        this.isShooting = read.bool();
+        if(!islocal) {
+            this.mineTile = mindustry.io.TypeIO.readTile(read);
+        } else {
+            mindustry.io.TypeIO.readTile(read);
+        }
+        if(!islocal) {
+            this.mounts = mindustry.io.TypeIO.readMounts(read, this.mounts);
+        } else {
+            mindustry.io.TypeIO.readMounts(read);
+        }
+        if(!islocal) {
+            this.plans = mindustry.io.TypeIO.readPlansQueue(read);
+        } else {
+            mindustry.io.TypeIO.readPlansQueue(read);
+        }
+        if(!islocal) {
+            rotation_LAST_ = this.rotation;
+            this.rotation_TARGET_ = read.f();
+        } else {
+            read.f();
+            rotation_LAST_ = this.rotation;
+            rotation_TARGET_ = this.rotation;
+        }
+        this.shield = read.f();
+        this.spawnedByCore = read.bool();
+        this.stack = mindustry.io.TypeIO.readItems(read, this.stack);
+        int statuses_LENGTH = read.i();
+        this.statuses.clear();
+        for(int INDEX = 0; INDEX < statuses_LENGTH; INDEX ++) {
+            mindustry.entities.units.StatusEntry statuses_ITEM = mindustry.io.TypeIO.readStatus(read);
+            if(statuses_ITEM != null) this.statuses.add(statuses_ITEM);
+        }
+        this.team = mindustry.io.TypeIO.readTeam(read);
+        this.type = Vars.content.getByID(ContentType.unit, read.s());
+        if(!islocal) {
+            this.updateBuilding = read.bool();
+        } else {
+            read.bool();
+        }
+        if(!islocal) {
+            this.vel = mindustry.io.TypeIO.readVec2(read, this.vel);
+        } else {
+            mindustry.io.TypeIO.readVec2(read);
+        }
+        if(!islocal) {
+            x_LAST_ = this.x;
+            this.x_TARGET_ = read.f();
+        } else {
+            read.f();
+            x_LAST_ = this.x;
+            x_TARGET_ = this.x;
+        }
+        if(!islocal) {
+            y_LAST_ = this.y;
+            this.y_TARGET_ = read.f();
+        } else {
+            read.f();
+            y_LAST_ = this.y;
+            y_TARGET_ = this.y;
+        }
+        afterSync();
+
     }
 
     @Override
@@ -2098,21 +2183,10 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void rotateMove(Vec2 vec) {
-        moveAt(Tmp.v2.trns(rotation, vec.len()));
-        if (!vec.isZero()) {
-            rotation = Angles.moveToward(rotation, vec.angle(), type.rotateSpeed * Time.delta * speedMultiplier);
-        }
-    }
-
-    @Override
-    public float mass() {
-        return hitSize * hitSize * Mathf.pi;
-    }
-
-    @Override
-    public boolean isAI() {
-        return controller instanceof AIController;
+    public void moveAt(Vec2 vector, float acceleration) {
+        Vec2 t = tmp1.set(vector);
+        tmp2.set(t).sub(vel).limit(acceleration * vector.len() * Time.delta);
+        vel.add(tmp2);
     }
 
     @Override
@@ -2121,9 +2195,8 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public void kill() {
-        if (dead || net.client() || !killable()) return;
-        Call.unitDeath(id);
+    public void statusDrag(float drag) {
+        applyDynamicStatus().dragMultiplier = type.drag == 0.0F ? 0.0F : drag / type.drag;
     }
 
     @Override
@@ -2236,109 +2309,36 @@ public class DroneUnit extends Unit implements Shieldc, Teamc, Entityc, Physicsc
     }
 
     @Override
-    public boolean canPass(int tileX, int tileY) {
-        SolidPred s = solidity();
-        return s == null || !s.solid(tileX, tileY);
+    public void snapInterpolation() {
+        updateSpacing = 16;
+        lastUpdated = Time.millis();
+        rotation_LAST_ = rotation;
+        rotation_TARGET_ = rotation;
+        x_LAST_ = x;
+        x_TARGET_ = x;
+        y_LAST_ = y;
+        y_TARGET_ = y;
+
     }
 
     @Override
-    public boolean isEnemy() {
-        return type.isEnemy;
+    public float deltaLen() {
+        return Mathf.len(deltaX, deltaY);
     }
 
     @Override
-    public void destroy() {
-        if (!isAdded() || !killable()) return;
-        float explosiveness = 2.0F + item().explosiveness * stack().amount * 1.53F;
-        float flammability = item().flammability * stack().amount / 1.9F;
-        float power = item().charge * Mathf.pow(stack().amount, 1.11F) * 160.0F;
-        if (!spawnedByCore) {
-            Damage.dynamicExplosion(x, y, flammability, explosiveness, power, (bounds() + type.legLength / 1.7F) / 2.0F, state.rules.damageExplosions && state.rules.unitCrashDamage(team) > 0, item().flammability > 1, team, type.deathExplosionEffect);
-        } else {
-            type.deathExplosionEffect.at(x, y, bounds() / 2.0F / 8.0F);
-        }
-        float shake = type.deathShake < 0 ? hitSize / 3.0F : type.deathShake;
-        if (type.createScorch) {
-            Effect.scorch(x, y, (int)(hitSize / 5));
-        }
-        Effect.shake(shake, shake, this);
-        type.deathSound.at(this);
-        Events.fire(new UnitDestroyEvent(this));
-        if (explosiveness > 7.0F && (isLocal() || wasPlayer)) {
-            Events.fire(Trigger.suicideBomb);
-        }
-        for (WeaponMount mount : mounts) {
-            if (mount.weapon.shootOnDeath && !(mount.weapon.bullet.killShooter && mount.totalShots > 0)) {
-                mount.reload = 0.0F;
-                mount.shoot = true;
-                mount.weapon.update(this, mount);
-            }
-        }
-        if (type.flying && !spawnedByCore && type.createWreck && state.rules.unitCrashDamage(team) > 0) {
-            var shields = indexer.getEnemy(team, BlockFlag.shield);
-            float crashDamage = Mathf.pow(hitSize, 0.75F) * type.crashDamageMultiplier * 2.5F * state.rules.unitCrashDamage(team);
-            if (shields.isEmpty() || !shields.contains((b)->b instanceof ExplosionShield s && s.absorbExplosion(x, y, crashDamage))) {
-                Damage.damage(team, x, y, Mathf.pow(hitSize, 0.94F) * 1.25F, crashDamage, true, false, true);
-            }
-        }
-        if (!headless && type.createScorch) {
-            for (int i = 0; i < type.wreckRegions.length; i++) {
-                if (type.wreckRegions[i].found()) {
-                    float range = type.hitSize / 4.0F;
-                    Tmp.v1.rnd(range);
-                    Effect.decal(type.wreckRegions[i], x + Tmp.v1.x, y + Tmp.v1.y, rotation - 90);
-                }
-            }
-        }
-        for (Ability a : abilities) {
-            a.death(this);
-        }
-        type.killed(this);
-        remove();
+    public boolean canBuild() {
+        return type.buildSpeed > 0 && buildSpeedMultiplier > 0;
     }
 
     @Override
-    public float ammof() {
-        return ammo / type.ammoCapacity;
+    public void trns(float x, float y) {
+        set(this.x + x, this.y + y);
     }
 
     @Override
-    public void drawBuildingBeam(float px, float py) {
-        boolean active = activelyBuilding();
-        if (!active && lastActive == null) return;
-        Draw.z(Layer.flyingUnit);
-        BuildPlan plan = active ? buildPlan() : lastActive;
-        Tile tile = world.tile(plan.x, plan.y);
-        if (tile == null || !within(plan, state.rules.infiniteResources ? Float.MAX_VALUE : type.buildRange)) {
-            return;
-        }
-        int size = plan.breaking ? active ? tile.block().size : lastSize : plan.block.size;
-        float tx = plan.drawx();
-        float ty = plan.drawy();
-        Lines.stroke(1.0F, plan.breaking ? Pal.remove : Pal.accent);
-        Draw.z(Layer.buildBeam);
-        Draw.alpha(buildAlpha);
-        if (!active && !(tile.build instanceof ConstructBuild)) {
-            Fill.square(plan.drawx(), plan.drawy(), size * tilesize / 2.0F);
-        }
-        Drawf.buildBeam(px, py, tx, ty, Vars.tilesize * size / 2.0F);
-        Fill.square(px, py, 1.8F + Mathf.absin(Time.time, 2.2F, 1.1F), rotation + 45);
-        Draw.reset();
-        Draw.z(Layer.flyingUnit);
-    }
-
-    @Override
-    public void movePref(Vec2 movement) {
-        if (type.omniMovement) {
-            moveAt(movement);
-        } else {
-            rotateMove(movement);
-        }
-    }
-
-    @Override
-    public <T> T as() {
-        return (T)this;
+    public void approach(Vec2 vector) {
+        vel.approachDelta(vector, type.accel * speed());
     }
 
     @Override

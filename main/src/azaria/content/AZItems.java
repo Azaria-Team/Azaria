@@ -4,6 +4,9 @@ import arc.graphics.Color;
 import arc.struct.Seq;
 import mindustry.type.Item;
 
+import static mindustry.content.Items.erekirItems;
+import static mindustry.content.Items.serpuloItems;
+
 public class AZItems {
     public static Item
     fors, lepera, ferbium, //TODO rename ferbuim
@@ -11,7 +14,7 @@ public class AZItems {
     seonium, medulla, zectral, arcanite,
     palerite, darnar;
 
-    public static final Seq<Item> aurionaItems = new Seq<>();
+    public static final Seq<Item> aurionaItems = new Seq<>(), aurionaOnlyItems = new Seq<>();;
     public static void load() {
         fors = new Item("fors", Color.valueOf("f3b2c1")) {{
         cost = 0.75f;
@@ -63,5 +66,8 @@ public class AZItems {
         aurionaItems.addAll(
                 fors, arside, lepera, serrid, ferbium, superdenseAlloy, seonium, medulla, zectral
         );
+
+        aurionaOnlyItems.addAll(aurionaItems).removeAll(serpuloItems);
+        aurionaOnlyItems.addAll(aurionaItems).removeAll(erekirItems);
     }
 }

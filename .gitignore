@@ -166,4 +166,8 @@ revisions/
 /main/assets-raw/sprites/atlas/concent1.png
 /main/assets-raw/sprites/atlas/concent2.png
 /bmod.exe
+main/src/azaria/gen
+tools/build/
+annotations/build/
+main/build/
 ## t

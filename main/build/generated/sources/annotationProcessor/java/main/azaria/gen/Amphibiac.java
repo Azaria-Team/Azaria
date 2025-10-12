@@ -28,7 +28,7 @@ import mindustry.gen.Weaponsc;
 
 @Annotations.EntityInterface
 @SuppressWarnings({"all", "deprecation"})
-public interface Amphibiac extends Shieldc, Teamc, Entityc, Physicsc, Posc, Itemsc, Weaponsc, Hitboxc, Syncc, Unitc, Drawc, Statusc, Healthc, Velc, Builderc, Rotc, Minerc {
+public interface Amphibiac extends Builderc, Hitboxc, Entityc, Syncc, Drawc, Posc, Teamc, Physicsc, Rotc, Unitc, Healthc, Statusc, Velc, Itemsc, Weaponsc, Shieldc, Minerc {
     float transformTime();
 
     void transformTime(float transformTime);

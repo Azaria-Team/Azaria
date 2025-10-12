@@ -112,11 +112,15 @@ public class AurionaPlanetGenerator extends PlanetGenerator {
         float height = rawHeight(position);
         return Math.max(height, water);
     }
-    public Color getColor(Vec3 position) {
+    @Override
+    public void getColor(Vec3 position, Color out) {
         Block block = getBlock(position);
 
-        if(block == AZEnvironment.crystalIce) return Color.valueOf("f6e9ff");
-        return Tmp.c1.set(block.mapColor).a(1f - block.albedo);
+        if (block == AZEnvironment.crystalIce) {
+            out.set(Color.valueOf("f6e9ff"));
+        } else {
+            out.set(block.mapColor).a(1f - block.albedo);
+        }
     }
 
     @Override
