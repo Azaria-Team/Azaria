@@ -32,7 +32,7 @@ public class AZBullets {
             lifetime = 0f;
             speed = 0f;
             damage = 0f;
-            sprite = "az-none";
+            sprite = "azaria-none";
             collidesAir = true;
             collidesGround = true;
             range = 17 * 8f;
@@ -42,7 +42,7 @@ public class AZBullets {
         forceBullet = new BasicBulletType(6f, 35f){{
             splashDamage = 30f;
             splashDamageRadius = 25f;
-            sprite = "az-dagger-missile";
+            sprite = "azaria-dagger-missile";
             trailInterval = 0.5f;
             trailEffect = AZFx.forceBulletTrail;
             hitEffect = AZFx.forceBulletHit;
@@ -66,7 +66,7 @@ public class AZBullets {
         }};
 
         forceFerbiumBullet = new BasicBulletType(7f, 45f){{
-            sprite = "az-dagger-missile";
+            sprite = "azaria-dagger-missile";
             trailInterval = 0.4f;
             trailEffect = AZFx.forceFerbiumBulletTrail;
             hitEffect = AZFx.forceFerbiumBulletHit;
@@ -140,7 +140,7 @@ public class AZBullets {
         ferbiumBullet = new ArtilleryBulletType(8f, 26f){{
             splashDamage = 10f;
             splashDamageRadius = 2f * 8;
-            sprite = "az-vog";
+            sprite = "azaria-vog";
             drag = 0.005f;
             trailInterval = 0.2f;
             trailEffect = AZFx.ferbiumBulletTrail;
@@ -168,7 +168,7 @@ public class AZBullets {
 
 
         razeBullet = new BasicBulletType(7f, 40f){{
-            sprite = "az-grenade";
+            sprite = "azaria-grenade";
             trailInterval = 0.5f;
             hitEffect = AZFx.superdanseBulletHit;
             despawnEffect = AZFx.superdanseBulletDespawn;
@@ -196,7 +196,7 @@ public class AZBullets {
         }};
 
         antiMissileBullet = new AntiMissileBulletType(6f, 60f, 10 * Vars.tilesize){{
-            sprite = "az-dagger-missile";
+            sprite = "azaria-dagger-missile";
             shrinkX = shrinkY = 0f;
             speed = 6;
             damage = 60;
