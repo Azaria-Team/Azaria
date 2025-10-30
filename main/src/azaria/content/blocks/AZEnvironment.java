@@ -65,7 +65,9 @@ public class AZEnvironment {
     //TODO
     //ores
     forsOre, ferbiumOre, forsRock,
-            leperaGrowth;
+            leperaGrowth,
+
+    testingEnv;
 
 
 
@@ -494,6 +496,12 @@ public class AZEnvironment {
             isLiquid = true;
         }};
         //endregion ores
+
+
+        testingEnv = new Floor("testing-env") {{
+            //itemDrop = AZItems.volcanicSerrid;
+            variants = 4;
+        }};
         //endregion Auriona
         ((ShallowLiquid)balsitePlatesOxylite).set(oxylite, balsitePlates);
         ((ShallowLiquid)darkSerridOxylite).set(oxylite, darkSerrid);

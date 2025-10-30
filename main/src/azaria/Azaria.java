@@ -62,7 +62,7 @@ public class Azaria extends Mod {
     }
 
     public static boolean isAzaria(Content content) {
-        return content.minfo.mod != null && content.minfo.mod.name.equals("omaloon");
+        return content.minfo.mod != null && content.minfo.mod.name.equals("azaria");
     }
 
     public static Mods.LoadedMod mod() {
