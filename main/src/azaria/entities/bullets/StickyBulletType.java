@@ -1,5 +1,6 @@
 package azaria.entities.bullets;
 
+import arc.math.Mathf;
 import mindustry.entities.Damage;
 import mindustry.entities.bullet.BasicBulletType;
 import mindustry.gen.Bullet;
@@ -17,11 +18,27 @@ public class StickyBulletType extends BasicBulletType {
 
     @Override
     public void hitEntity(Bullet b, Hitboxc entity, float initialHealth) {
-        if (b.data instanceof Unit)
+        if (b.data instanceof StickData)
             return;
 
         if (entity instanceof Unit u) {
-            b.data = u;
+            // Calculate relative position (unrotated)
+            float dx = b.x - u.x;
+            float dy = b.y - u.y;
+
+            // For Mindustry units, rotation 0 is usually facing right (0 degrees).
+            // Rotate the offset vector by -u.rotation to align with unit's local space
+            float cos = Mathf.cosDeg(-u.rotation);
+            float sin = Mathf.sinDeg(-u.rotation);
+
+            float localX = dx * cos - dy * sin;
+            float localY = dx * sin + dy * cos;
+
+            float relativeRotation = b.rotation() - u.rotation;
+
+            StickData data = new StickData(u, localX, localY, relativeRotation);
+            b.data = data;
+
             b.time = 0f;
             b.lifetime = stickTime;
             b.vel.setZero();
@@ -32,20 +49,30 @@ public class StickyBulletType extends BasicBulletType {
 
     @Override
     public void update(Bullet b) {
-        if (b.data instanceof Unit u) {
+        if (b.data instanceof StickData data) {
+            Unit u = data.unit;
             if (u.dead || !u.isAdded()) {
                 b.remove();
                 return;
             }
-            b.set(u.x, u.y);
-            b.rotation(u.rotation);
+
+            // Apply current unit rotation to the stored local offset
+            float cos = Mathf.cosDeg(u.rotation);
+            float sin = Mathf.sinDeg(u.rotation);
+
+            float worldOffsetX = data.x * cos - data.y * sin;
+            float worldOffsetY = data.x * sin + data.y * cos;
+
+            b.set(u.x + worldOffsetX, u.y + worldOffsetY);
+            b.rotation(u.rotation + data.rotation);
         }
         super.update(b);
     }
 
     @Override
     public void despawned(Bullet b) {
-        if (b.data instanceof Unit u) {
+        if (b.data instanceof StickData data) {
+            Unit u = data.unit;
             u.damage(damage * b.damageMultiplier());
 
             if (splashDamageRadius > 0) {
@@ -57,6 +84,18 @@ public class StickyBulletType extends BasicBulletType {
             despawnEffect.at(b.x, b.y, b.rotation(), hitColor);
         } else {
             super.despawned(b);
+        }
+    }
+
+    public static class StickData {
+        public Unit unit;
+        public float x, y, rotation;
+
+        public StickData(Unit unit, float x, float y, float rotation) {
+            this.unit = unit;
+            this.x = x;
+            this.y = y;
+            this.rotation = rotation;
         }
     }
 }

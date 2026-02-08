@@ -328,5 +328,25 @@ public class AZTurrets {
  */
         //endregion h-tur
 
+        testTurret = new ItemTurret("test-turret") {{
+            requirements(Category.turret, with(AZItems.fors, 70, AZItems.lepera, 25));
+            reload = 50f;
+            inaccuracy = 4f;
+            shake = 1f;
+            shootY = 1;
+            outlineColor = AZPal.aureliaOutline;
+            size = 2;
+            recoil = 2f;
+            range = 23 * Vars.tilesize;
+            shootCone = 10f;
+            rotateSpeed = 3f;
+            shoot.shots = 2;
+            shoot.shotDelay = 10;
+            // shootSound  = Sounds.bolt;
+            squareSprite = false;
+
+            ammo(AZItems.fors, AZBullets.testBullet);
+
+        }};
     }
 }

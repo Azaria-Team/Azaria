@@ -6,6 +6,7 @@ import arc.math.Interp;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import azaria.entities.bullets.AntiMissileBulletType;
+import azaria.entities.bullets.StickyBulletType;
 import azaria.graphics.AZPal;
 import mindustry.Vars;
 import mindustry.content.Fx;
@@ -20,7 +21,7 @@ import static arc.graphics.g2d.Lines.stroke;
 
 public class AZBullets {
     public static BulletType
-            noneBullet, forceBullet, forceFerbiumBullet, hornBullet, antiMissileBullet, shrapnelBullet, ferbiumBullet, razeBullet, tideLaser;
+            noneBullet, forceBullet, forceFerbiumBullet, hornBullet, antiMissileBullet, shrapnelBullet, ferbiumBullet, testBullet, razeBullet, tideLaser;
 
     public static void load() {
 
@@ -164,6 +165,23 @@ public class AZBullets {
             trailColor = AZPal.ferbiumBullet;
             backColor = AZPal.ferbiumBulletBack;
             frontColor = AZPal.ferbiumBullet;
+        }};
+
+        testBullet = new StickyBulletType(8f, 26f){{
+            splashDamage = 10f;
+            splashDamageRadius = 2f * 8;
+            drag = 0.005f;
+            trailRotation = true;
+            shrinkX = shrinkY = 0f;
+            width = 10f;
+            height = 13f;
+            lifetime = 76;
+            collidesGround = true;
+            collidesAir = true;
+            hitSize = 2;
+
+            weaveScale = 8f;
+            weaveMag = 0.8f;
         }};
 
 
