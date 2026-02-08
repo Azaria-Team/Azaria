@@ -67,7 +67,7 @@ public class AZPower {
             size = 2;
             floating = true;
             placeableLiquid = true;
-            ambientSound = Sounds.hum;
+//            ambientSound = Sounds.hum;
             ambientSoundVolume = 0.06f;
             attribute = AZAttribute.mainlheatattr;
             generateEffect = AZFx.smokeEvaporatorBig;
@@ -93,7 +93,7 @@ public class AZPower {
             squareSprite = false;
             generateEffect = AZFx.smokeEvaporatorSmall;
             researchCostMultiplier = 0.5f;
-            ambientSound = Sounds.smelter;
+          //  ambientSound = Sounds.smelter;
             ambientSoundVolume = 0.1f;
 
             consumeItems(with(AZItems.lepera, 2f));

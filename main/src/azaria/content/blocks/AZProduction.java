@@ -36,7 +36,7 @@ public class AZProduction {
             consumePower(1f);
             researchCostMultiplier = 0.2f;
             squareSprite = false;
-            ambientSound = Sounds.smelter;
+        //    ambientSound = Sounds.smelter;
             drawer = new DrawMulti(
                     new DrawRegion("-bottom"){{
                         layer = Layer.block;
@@ -57,7 +57,7 @@ public class AZProduction {
             outputItem = new ItemStack(AZItems.superdenseAlloy, 4);
             consumeItems(with(AZItems.fors, 2, AZItems.serrid, 3, AZItems.ferbium, 1));
             craftTime = 160f;
-            ambientSound = Sounds.smelter;
+           // ambientSound = Sounds.smelter;
             ambientSoundVolume = 0.1f;
             size = 4;
             // craftEffect = AZFx.crasideBrewerSmoke;

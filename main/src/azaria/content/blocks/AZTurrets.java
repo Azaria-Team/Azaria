@@ -47,7 +47,7 @@ public class AZTurrets {
             shootCone = 10f;
             rotateSpeed = 4f;
 
-            shootSound = Sounds.cannon;
+            // shootSound  = Sounds.cannon;
             squareSprite = false;
             ammoPerShot = 1;
             maxAmmo = 10;
@@ -105,7 +105,7 @@ public class AZTurrets {
             shootCone = 35f;
             rotateSpeed = 3.4f;
 
-            shootSound = Sounds.shockBlast;
+            // shootSound  = Sounds.shockBlast;
             squareSprite = false;
 
             shoot = new ShootSpread(7, 6);
@@ -164,7 +164,7 @@ public class AZTurrets {
             speedupPerShoot = 0.09f;
             reload = 300f;
 
-            shootSound = Sounds.shootAltLong;
+            // shootSound  = Sounds.shootAltLong;
             squareSprite = false;
             ammoPerShot = 1;
             maxAmmo = 10;
@@ -199,7 +199,7 @@ public class AZTurrets {
             shoot.shotDelay = 10;
             consumePower(1f);
 
-            shootSound = Sounds.bolt;
+            // shootSound  = Sounds.bolt;
             squareSprite = false;
             coolantMultiplier = 2f;
 
@@ -247,7 +247,7 @@ public class AZTurrets {
             shake = 3f;
             shootCone = 2f;
             //ammoPerShot = 1;
-            shootSound = Sounds.shootBig;
+            // shootSound  = Sounds.shootBig;
             ammoUseEffect = Fx.casing2;
             targetAir = true;
             targetGround = false;
@@ -312,7 +312,7 @@ public class AZTurrets {
             shootCone = 10f;
             rotateSpeed = 3f;
 
-            shootSound = Sounds.cannon;
+            // shootSound  = Sounds.cannon;
             squareSprite = false;
             itemCapacity = 20;
             coolantMultiplier = 2f;

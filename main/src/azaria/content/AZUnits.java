@@ -101,7 +101,7 @@ public class AZUnits {
                         mirror = false;
                         reload = 90f;
                         soundPitchMin = 1f;
-                        shootSound = Sounds.missileSmall;
+                        // shootSound  = Sounds.missileSmall;
                         bullet = new BulletType(){{
                             shake = 2f;
                             speed = 0f;
@@ -174,7 +174,7 @@ public class AZUnits {
                 y = -6;
                 mirror = false;
                 rotateSpeed = 6;
-                shootSound = Sounds.shootAlt;
+                // shootSound  = Sounds.shootAlt;
                 bullet = new MissileBulletType(5f, 10, "azaria-vog") {{
                     backColor = AZPal.vogPinkBack;
                     frontColor = AZPal.forceBullet;
@@ -238,7 +238,7 @@ public class AZUnits {
                         layerOffset = -0.0001f;
                         baseRotation = -65f;
                         shootCone = 360f;
-                        shootSound = Sounds.missileSmall;
+                        // shootSound  = Sounds.missileSmall;
                         shoot = new ShootSpread(1, 10f);
                         bullet = new AimBulletType(3f, 25) {{
                             backColor = AZPal.vogPinkBack;
@@ -276,7 +276,7 @@ public class AZUnits {
                             layerOffset = -0.0001f;
                             baseRotation = -115f;
                             shootCone = 360f;
-                            shootSound = Sounds.missileSmall;
+                            // shootSound  = Sounds.missileSmall;
                             shoot = new ShootSpread(1, 10f);
                             bullet = new AimBulletType(3f, 25) {
                                 {
@@ -317,7 +317,7 @@ public class AZUnits {
                         y = -2.5f;
                         mirror = false;
                         rotateSpeed = 5;
-                        shootSound = Sounds.shootAlt;
+                        // shootSound  = Sounds.shootAlt;
 
                         shoot = new AZBurstShoot(3, 6, 15f);
                         bullet = new MissileBulletType(6f, 10, "azaria-vog") {{
@@ -377,7 +377,7 @@ public class AZUnits {
                         layerOffset = 0.01f;
                         showStatSprite = false;
                         shootCone = 10f;
-                        shootSound = Sounds.missileLaunch;
+                        // shootSound  = Sounds.missileLaunch;
                         minWarmup = 0.9f;
                         smoothReloadSpeed = 0.15f;
                         shootWarmupSpeed = 0.02f;
@@ -427,9 +427,9 @@ public class AZUnits {
                                 health = 500;
                                 hitSize = 10;
                                 lowAltitude = true;
-                                loopSound = Sounds.missileTrail;
+                                //loopSound = Sounds.missileTrail;
                                 loopSoundVolume = 0.6f;
-                                deathSound = Sounds.largeExplosion;
+                               // deathSound = Sounds.largeExplosion;
                                 hitEffect = Fx.none;
                                 despawnEffect = Fx.none;
                                 targetAir = false;
@@ -491,7 +491,7 @@ public class AZUnits {
                         reload = 27.5f;
                         layerOffset = -0.002f;
                         inaccuracy = 0.4f;
-                        shootSound = Sounds.shootAltLong;
+                        // shootSound  = Sounds.shootAltLong;
                         recoil = 3.5f;
                         shoot = new ShootSpread(3, 5f);
                         bullet = new BasicBulletType(5.5f, 7) {{
@@ -542,7 +542,7 @@ public class AZUnits {
                         layerOffset = -0.002f;
                         recoil = 3.5f;
                         inaccuracy = 6.35f;
-                        shootSound = Sounds.missile;
+                        // shootSound  = Sounds.missile;
 
                         shoot = new ShootAlternate() {{
                             shots = 2;
@@ -628,7 +628,7 @@ public class AZUnits {
                         rotationLimit = 20f;
                         layerOffset = -0.0001f;
                         shootCone = 90f;
-                        shootSound = Sounds.missileSmall;
+                        // shootSound  = Sounds.missileSmall;
                         shoot.shots = 6;
                         shoot.shotDelay = 6f;
                         inaccuracy = 20;
@@ -666,7 +666,7 @@ public class AZUnits {
                         mirror = true;
                         layerOffset = -0.0001f;
                         shootCone = 30f;
-                        shootSound = Sounds.shootAltLong;
+                        // shootSound  = Sounds.shootAltLong;
                         shoot.shots = 2;
                         inaccuracy = 7;
                         bullet = new BasicBulletType(4f, 30) {{
@@ -717,7 +717,7 @@ public class AZUnits {
                         bladeBlurAlphaMultiplier = 0.9f;
                     }});
             weapons.add(new Weapon(""){{
-                shootSound = Sounds.flame;
+                // shootSound  = Sounds.flame;
                 shootY = 2f;
                 mirror = false;
                 x = 0;
@@ -784,7 +784,7 @@ public class AZUnits {
                 mirror = true;
                 alternate = true;
                 shootY = 1.7f;
-                shootSound = Sounds.shootAlt;
+                // shootSound  = Sounds.shootAlt;
 
                 shoot = new AZBurstShoot(2, 5, 4.0f);
                 inaccuracy = 5.65f;
@@ -838,7 +838,7 @@ public class AZUnits {
                 y = -4;
                 mirror = true;
                 alternate = true;
-                shootSound = Sounds.shootAlt;
+                // shootSound  = Sounds.shootAlt;
 
                 inaccuracy = 5.5f;
                 bullet = new ArtilleryBulletType(5.5f, 10) {{
@@ -912,7 +912,7 @@ public class AZUnits {
                         reload = 335.0f;
                         inaccuracy = 1f;
                         shake = 1f;
-                        shootSound = Sounds.pulseBlast;
+                        // shootSound  = Sounds.pulseBlast;
                         shoot.firstShotDelay = 40;
                         parentizeEffects = true;
                         shootY = 4;
@@ -972,7 +972,7 @@ public class AZUnits {
                         reload = 15.0f;
                         inaccuracy = 5f;
                         shake = 0.4f;
-                        shootSound = Sounds.shootAlt;
+                        // shootSound  = Sounds.shootAlt;
 
                         bullet = new BasicBulletType(5.7f, 15) {{
                             velocityRnd = 0.25f;
@@ -1049,7 +1049,7 @@ public class AZUnits {
             }});
             weapons.add(new Weapon("azaria-flare-shield") {{
                 reload = Integer.MAX_VALUE;
-                shootSound = Sounds.none;
+                // shootSound  = Sounds.none;
                 recoil = 0f;
                 rotateSpeed = 2f;
                 rotate = true;
@@ -1090,7 +1090,7 @@ public class AZUnits {
                     mirror = true;
                     shootY = 1f;
                     rotateSpeed = 3.0f;
-                    shootSound = Sounds.lasershoot;
+                    // shootSound  = Sounds.lasershoot;
                     shoot.shotDelay = 6;
                     shoot.firstShotDelay = 15;
                     parentizeEffects = true;
@@ -1145,7 +1145,7 @@ public class AZUnits {
                     mirror = false;
                     shootY = 1f;
                     rotateSpeed = 2.0f;
-                    shootSound = Sounds.spark;
+                    // shootSound  = Sounds.spark;
                     shoot.shotDelay = 6;
                     shoot.firstShotDelay = 15;
                     shoot.shots = 1;

@@ -22,7 +22,7 @@ public class ModDuct extends Duct {
 
     public ModDuct(String name) {
         super(name);
-        ambientSound = Sounds.conveyor;
+//        ambientSound = Sounds.conveyor;
         ambientSoundVolume = 0.0022f;
     }
 

@@ -21,7 +21,7 @@ public class ArtLightningBulletType extends BulletType {
          super(0.0001f, damage);
          scaleLife = true;
          hitShake = 2f;
-         hitSound = Sounds.spark;
+     //    hitSound = Sounds.spark;
          absorbable = keepVelocity = false;
          instantDisappear = true;
          collides = false;

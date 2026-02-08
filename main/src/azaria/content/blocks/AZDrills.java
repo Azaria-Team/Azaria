@@ -34,7 +34,7 @@ public class AZDrills {
 
             attribute = AZAttribute.forsattr;
             outputItem = new ItemStack(AZItems.fors, 4);
-            ambientSound = Sounds.drill;
+        //    ambientSound = Sounds.drill;
 
             health = 280;
             size = 2;
@@ -66,7 +66,7 @@ public class AZDrills {
             attribute = AZAttribute.leperaattr;
             group = BlockGroup.liquids;
             outputItem = new ItemStack(AZItems.lepera, 4);
-            ambientSound = Sounds.hum;
+        //    ambientSound = Sounds.hum;
             ambientSoundVolume = 0.06f;
 
             health = 280;
@@ -95,7 +95,7 @@ public class AZDrills {
 
             attribute = AZAttribute.serridAttr;
             outputItem = new ItemStack(AZItems.serrid, 4);
-            ambientSound = Sounds.extractLoop;
+//            ambientSound = Sounds.extractLoop;
             ambientSoundVolume = 0.06f;
 
             health = 280;
