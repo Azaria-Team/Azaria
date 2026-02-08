@@ -22,12 +22,9 @@ public class StickyBulletType extends BasicBulletType {
             return;
 
         if (entity instanceof Unit u) {
-            // Calculate relative position (unrotated)
             float dx = b.x - u.x;
             float dy = b.y - u.y;
 
-            // For Mindustry units, rotation 0 is usually facing right (0 degrees).
-            // Rotate the offset vector by -u.rotation to align with unit's local space
             float cos = Mathf.cosDeg(-u.rotation);
             float sin = Mathf.sinDeg(-u.rotation);
 
@@ -56,7 +53,6 @@ public class StickyBulletType extends BasicBulletType {
                 return;
             }
 
-            // Apply current unit rotation to the stored local offset
             float cos = Mathf.cosDeg(u.rotation);
             float sin = Mathf.sinDeg(u.rotation);
 
