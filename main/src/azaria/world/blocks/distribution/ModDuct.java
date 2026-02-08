@@ -16,41 +16,45 @@ import mindustry.world.Block;
 import mindustry.world.blocks.distribution.*;
 
 public class ModDuct extends Duct {
-    public @Nullable
-    Block junctionReplacement, bridgeReplacement;
-    public String bottomName = "az-magnetic-conveyor-bottom";
+    public @Nullable Block junctionReplacement, bridgeReplacement;
+    public String bottomName = "azaria-magnetic-conveyor-bottom";
 
     public ModDuct(String name) {
         super(name);
-//        ambientSound = Sounds.conveyor;
+        // ambientSound = Sounds.conveyor;
         ambientSoundVolume = 0.0022f;
     }
 
     @Override
-    public void init(){
+    public void init() {
         super.init();
 
-        if(junctionReplacement == null) junctionReplacement = AZDistribution.magneticJunction;
-        if(bridgeReplacement == null || !(bridgeReplacement instanceof ItemBridge)) bridgeReplacement = AZDistribution.magneticBridgeConveyor;
+        if (junctionReplacement == null)
+            junctionReplacement = AZDistribution.magneticJunction;
+        if (bridgeReplacement == null || !(bridgeReplacement instanceof ItemBridge))
+            bridgeReplacement = AZDistribution.magneticBridgeConveyor;
     }
 
     @Override
-    public TextureRegion[] icons(){
-        return new TextureRegion[]{Core.atlas.find(bottomName), topRegions[0]};
+    public TextureRegion[] icons() {
+        return new TextureRegion[] { Core.atlas.find(bottomName), topRegions[0] };
     }
 
     @Override
-    public void handlePlacementLine(Seq<BuildPlan> plans){
-        if(bridgeReplacement == null) return;
+    public void handlePlacementLine(Seq<BuildPlan> plans) {
+        if (bridgeReplacement == null)
+            return;
 
         Placement.calculateBridges(plans, (ItemBridge) bridgeReplacement);
     }
 
     @Override
-    public Block getReplacement(BuildPlan req, Seq<BuildPlan> plans){
-        if(junctionReplacement == null) return this;
+    public Block getReplacement(BuildPlan req, Seq<BuildPlan> plans) {
+        if (junctionReplacement == null)
+            return this;
 
-        Boolf<Point2> cont = p -> plans.contains(o -> o.x == req.x + p.x && o.y == req.y + p.y && (req.block instanceof Duct || req.block instanceof Junction));
+        Boolf<Point2> cont = p -> plans.contains(o -> o.x == req.x + p.x && o.y == req.y + p.y
+                && (req.block instanceof Duct || req.block instanceof Junction));
         return cont.get(Geometry.d4(req.rotation)) &&
                 cont.get(Geometry.d4(req.rotation - 2)) &&
                 req.tile() != null &&
