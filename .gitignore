@@ -163,7 +163,17 @@ tools/build/
 revisions/
 
 ## Sprites
-/assets/sprites/atlas/concent1.png
-/assets/sprites/atlas/concent2.png
+/main/assets-raw/sprites/atlas/concent1.png
+/main/assets-raw/sprites/atlas/concent2.png
 /bmod.exe
+main/src/azaria/gen
+tools/build/
+/annotations/build/
+/main/build/
+/main/build/generated
+main/build
+/main/assets/sprites/atlas/
+main/assets/sprites/atlas/
+main/assets/sprites/
+main/assets/sprites
 ## t

@@ -1,0 +1,7 @@
+azaria.annotations.processors.impl.AssetsProcessor
+azaria.annotations.processors.impl.LoadProcessor
+azaria.annotations.processors.impl.StructProcessor
+azaria.annotations.processors.impl.RegionsProcessor
+azaria.annotations.processors.entity.EntityProcessor
+azaria.annotations.processors.entity.MergeProcessor
+azaria.annotations.processors.entity.DupeProcessor
